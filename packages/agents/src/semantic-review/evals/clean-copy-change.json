@@ -1,0 +1,32 @@
+{
+  "name": "clean-copy-change",
+  "description": "Copy-only edit that plainly delivers its stated intent — should pass with no findings.",
+  "pr": {
+    "number": 101,
+    "title": "Tweak marketing hero copy",
+    "repo": "askable/autogate",
+    "author": "isaac",
+    "url": "https://github.com/askable/autogate/pull/101",
+    "branch": "hero-copy",
+    "baseRef": "main",
+    "headRef": "hero-copy",
+    "headSha": "a1b2c3d",
+    "description": "Update the hero headline from 'Ship faster' to 'Ship with confidence'. Copy only, no logic."
+  },
+  "files": {
+    "src/marketing/hero.tsx": "export const Hero = () => <h1>Ship with confidence</h1>;"
+  },
+  "agentResponse": {
+    "status": "pass",
+    "confidence": 0.95,
+    "summary": "The diff changes only the hero headline string, exactly matching the stated copy-only intent.",
+    "findings": [],
+    "intentSummary": "Update the hero headline copy; no behavioural change intended.",
+    "unmetIntent": []
+  },
+  "expect": {
+    "status": "pass",
+    "riskBand": "low",
+    "maxFindings": 0
+  }
+}

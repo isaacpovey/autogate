@@ -1,0 +1,32 @@
+{
+  "name": "clean-no-issues",
+  "description": "A safe refactor that introduces no secrets, injection vectors, or authz gaps — should pass with no findings.",
+  "pr": {
+    "number": 201,
+    "title": "Refactor user profile fetch to use repository pattern",
+    "repo": "askable/autogate",
+    "author": "maya",
+    "url": "https://github.com/askable/autogate/pull/201",
+    "branch": "refactor/user-profile-repo",
+    "baseRef": "main",
+    "headRef": "refactor/user-profile-repo",
+    "headSha": "c3d4e5f",
+    "description": "Moves the raw Prisma calls for user profile reads into a UserRepository class. No new endpoints, no auth changes, purely internal restructuring."
+  },
+  "files": {
+    "src/repositories/UserRepository.ts": "import { prisma } from '../lib/prisma.js';\n\nexport class UserRepository {\n  async findById(id: string) {\n    return prisma.user.findUnique({ where: { id } });\n  }\n\n  async findByEmail(email: string) {\n    return prisma.user.findUnique({ where: { email } });\n  }\n}\n",
+    "src/services/UserService.ts": "import { UserRepository } from '../repositories/UserRepository.js';\n\nconst repo = new UserRepository();\n\nexport const getUserById = (id: string) => repo.findById(id);\nexport const getUserByEmail = (email: string) => repo.findByEmail(email);\n"
+  },
+  "agentResponse": {
+    "status": "pass",
+    "confidence": 0.97,
+    "summary": "The change is a pure internal refactor moving Prisma calls into a repository class. No secrets, injection vectors, missing auth guards, or unsafe patterns were found.",
+    "findings": [],
+    "vulnerabilityClasses": []
+  },
+  "expect": {
+    "status": "pass",
+    "riskBand": "low",
+    "maxFindings": 0
+  }
+}

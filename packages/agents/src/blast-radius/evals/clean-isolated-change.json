@@ -1,0 +1,33 @@
+{
+  "name": "clean-isolated-change",
+  "description": "A change to a leaf component used only within a single feature module — blast radius is trivially small.",
+  "pr": {
+    "number": 201,
+    "title": "Improve tooltip copy in booking widget",
+    "repo": "askable/autogate",
+    "author": "priya",
+    "url": "https://github.com/askable/autogate/pull/201",
+    "branch": "tooltip-copy",
+    "baseRef": "main",
+    "headRef": "tooltip-copy",
+    "headSha": "c3d4e5f",
+    "description": "Updates the tooltip label text in the booking widget. No logic change, copy only."
+  },
+  "files": {
+    "apps/dashboard/src/components/booking/TooltipLabel.tsx": "export const TooltipLabel = () => <span>Book a session to get started</span>;"
+  },
+  "agentResponse": {
+    "status": "pass",
+    "confidence": 0.97,
+    "summary": "The change is confined to a single leaf component with no importers outside the booking feature. Blast radius is trivially small.",
+    "findings": [],
+    "affectedPaths": ["apps/dashboard/src/components/booking/TooltipLabel.tsx"],
+    "downstreamSystems": [],
+    "fanout": 1
+  },
+  "expect": {
+    "status": "pass",
+    "riskBand": "low",
+    "maxFindings": 0
+  }
+}

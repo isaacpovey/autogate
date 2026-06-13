@@ -1,0 +1,50 @@
+{
+  "name": "intent-mismatch",
+  "description": "PR claims to add validation but the implementation never wires it in — a material mismatch.",
+  "pr": {
+    "number": 102,
+    "title": "Add email validation to signup",
+    "repo": "askable/autogate",
+    "author": "casey",
+    "url": "https://github.com/askable/autogate/pull/102",
+    "branch": "signup-validation",
+    "baseRef": "main",
+    "headRef": "signup-validation",
+    "headSha": "e4f5a6b",
+    "description": "Validate the email field on signup and reject malformed addresses before submit."
+  },
+  "files": {
+    "src/signup/form.ts": "export const submit = (email: string) => api.signup({ email });",
+    "src/signup/validate.ts": "export const isEmail = (value: string) => /.+@.+/.test(value);"
+  },
+  "agentResponse": {
+    "status": "fail",
+    "confidence": 0.82,
+    "summary": "A validator helper was added but submit() never calls it, so the stated validation intent is not delivered.",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "Validation helper is never invoked",
+        "detail": "isEmail() is defined but submit() passes the raw email straight to api.signup without validating.",
+        "file": "src/signup/form.ts",
+        "line": 1
+      },
+      {
+        "severity": "medium",
+        "title": "No rejection path for malformed addresses",
+        "detail": "The PR promises to reject malformed addresses before submit; no branch handles the invalid case.",
+        "file": "src/signup/form.ts"
+      }
+    ],
+    "intentSummary": "Validate email on signup and block malformed addresses before submission.",
+    "unmetIntent": [
+      "Email is not validated before submit",
+      "Malformed addresses are not rejected"
+    ]
+  },
+  "expect": {
+    "status": "fail",
+    "riskBand": "medium",
+    "minFindings": 2
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "clean-refactor",
+  "description": "A well-structured refactor that follows all house patterns — should pass with no findings.",
+  "pr": {
+    "number": 210,
+    "title": "Refactor user service to use shared DB client",
+    "repo": "askable/autogate",
+    "author": "priya",
+    "url": "https://github.com/askable/autogate/pull/210",
+    "branch": "refactor/user-service-db-client",
+    "baseRef": "main",
+    "headRef": "refactor/user-service-db-client",
+    "headSha": "c3d4e5f",
+    "description": "Replaces the inline pg.Pool instantiation in the user service with the shared getDbClient() helper, aligning it with our standard DB access pattern."
+  },
+  "files": {
+    "src/services/userService.ts": "import { getDbClient } from '../db/client.js';\nimport type { User } from '../types/user.js';\n\nexport const getUserById = async (id: string): Promise<User | null> => {\n  const db = getDbClient();\n  const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);\n  return result.rows[0] ?? null;\n};\n\nexport const listUsers = async (): Promise<User[]> => {\n  const db = getDbClient();\n  const result = await db.query('SELECT * FROM users ORDER BY created_at DESC');\n  return result.rows;\n};\n"
+  },
+  "agentResponse": {
+    "status": "pass",
+    "confidence": 0.97,
+    "summary": "All changed files follow house patterns: named exports used throughout, shared DB client accessed via getDbClient(), and file placed correctly in the services layer.",
+    "findings": [],
+    "checkedPatterns": 12,
+    "violatedPatterns": []
+  },
+  "expect": {
+    "status": "pass",
+    "riskBand": "low",
+    "maxFindings": 0
+  }
+}
