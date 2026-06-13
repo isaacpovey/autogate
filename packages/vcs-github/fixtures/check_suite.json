@@ -1,0 +1,32 @@
+{
+  "action": "completed",
+  "check_suite": {
+    "id": 9876543210,
+    "head_branch": "feature/autogate-replay",
+    "head_sha": "d6fde92930d4715a2b49857d24b940956b26d2d3",
+    "status": "completed",
+    "conclusion": "success",
+    "pull_requests": [
+      {
+        "number": 42,
+        "head": {
+          "ref": "feature/autogate-replay",
+          "sha": "d6fde92930d4715a2b49857d24b940956b26d2d3"
+        },
+        "base": {
+          "ref": "main",
+          "sha": "0000000000000000000000000000000000000000"
+        }
+      }
+    ]
+  },
+  "repository": {
+    "id": 123456789,
+    "name": "autogate",
+    "full_name": "isaacpovey/autogate"
+  },
+  "sender": {
+    "login": "isaacpovey",
+    "id": 1
+  }
+}
