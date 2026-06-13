@@ -29,6 +29,12 @@ importers:
       '@autogate/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@autogate/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
+      '@autogate/store-postgres':
+        specifier: workspace:*
+        version: link:../../packages/store-postgres
       '@trpc/server':
         specifier: ^11.17.0
         version: 11.17.0(typescript@5.9.2)

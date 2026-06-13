@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "worker": "tsx src/worker.ts",
+    "seed-fixture": "tsx src/seed-fixture.ts",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "smoke": "tsx smoke.ts"
@@ -13,6 +15,8 @@
   "dependencies": {
     "@autogate/api": "workspace:*",
     "@autogate/contracts": "workspace:*",
+    "@autogate/sandbox": "workspace:*",
+    "@autogate/store-postgres": "workspace:*",
     "@trpc/server": "^11.17.0",
     "cors": "^2.8.6"
   },
