@@ -16,7 +16,7 @@ Implement the `Store` and `Queue` ports over Postgres with Drizzle, including mi
 
 ## Deliverables
 - Drizzle schema + migrations for: `runs`, `verdicts`, `escalations`, `overrides`, `jobs`.
-- `Store`: create/get/list runs (with filters + cursor pagination for `/api/runs`), append verdicts, record escalation, record override.
+- `Store`: create/get/list runs (with filters + cursor pagination for the `runs.list` tRPC query), append verdicts, record escalation, record override.
 - `Queue`: `enqueue`, `claim` (atomic, `FOR UPDATE SKIP LOCKED`), `complete`/`fail`.
 - Seed script for demo data.
 
@@ -27,5 +27,5 @@ Implement the `Store` and `Queue` ports over Postgres with Drizzle, including mi
 - Migrations run clean from an empty DB via the CLI (ticket 13).
 
 ## Notes
-- Pagination shape must match `DashboardApi` `/api/runs` (`{ items, nextCursor }`).
+- Pagination shape must match the `DashboardApi` `runs.list` query (`{ items, nextCursor }`).
 - Keep queries in repository functions; no ORM leakage past the port.

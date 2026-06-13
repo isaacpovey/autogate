@@ -12,7 +12,7 @@ phase: 1
 The core domain loop: when a PR's existing GitHub checks are all green (Layer 1 gate), fan out the Layer-2 AI agents, synthesize their `Verdict`s, and produce a `Decision` (auto-merge | escalate | block) with a risk score and, when escalating, a human **brief**. Pure logic over ports — imports no concrete adapter.
 
 ## Owns
-`apps/orchestrator` (API + worker) — `runPipeline`, `decide`, `buildBrief`, risk aggregation.
+`apps/api` (API + worker) — `runPipeline`, `decide`, `buildBrief`, risk aggregation. The tRPC server is already scaffolded here (serves `@autogate/api`'s `appRouter` over the standalone adapter); this ticket adds the orchestrator domain loop behind it and backs the `DashboardApi` procedures with real data.
 
 ## Consumes (ports, injected)
 `VcsProvider`, `SandboxRunner`, `Store`, `Queue`, `MemoryClient`, the `CheckSource` registry, and `Policy`.
@@ -25,6 +25,7 @@ The core domain loop: when a PR's existing GitHub checks are all green (Layer 1 
   4. Persist verdicts → `decide` → post status/brief via `VcsProvider`.
 - `decide({ verdicts, gate, policy }) => Decision`: aggregate `riskContribution`, apply `riskEscalateThreshold`, `escalateOnDisagreement`, `alwaysEscalatePaths`.
 - `buildBrief({ pr, verdicts }) => string`: the "what to look at and why" summary for escalations.
+- Back the `DashboardApi` tRPC procedures (`@autogate/api`, spec §6) with the `Store` instead of the scaffold's in-memory mock: `runs.list`/`runs.byId`/`metrics`/`repos` queries, `runs.override`/`runs.rollback` mutations, `stream`/`runs.onUpdate` subscriptions. Resolvers read ports from context — no provider logic in procedures.
 
 ## Definition of Done
 - `pnpm turbo check-types` passes; no import of any adapter package (enforced by lint/review).

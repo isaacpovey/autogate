@@ -31,7 +31,7 @@ PR opened (askable-services | autogate)
 LAYER 1 — GATE:  all existing GitHub checks must pass  (CI · lint · types · BUGBOT · any repo check)
         │  Autogate reads check runs; only kicks off when ALL are green
         ▼
-Orchestrator (Node/Hono):  queue (Postgres) → fan out L2 agents → synthesize → decide
+Orchestrator (Node + tRPC):  queue (Postgres) → fan out L2 agents → synthesize → decide
         │
 LAYER 2 — AI agents (Claude Agent SDK + RAG; read diff + repo, no app boot):
         │   semantic · blast-radius · risk · pattern · security · architecture
@@ -64,7 +64,7 @@ Cross-cutting:
 | `Store` | runs · verdicts · escalations · overrides | Postgres + Drizzle | in-mem repository |
 | `Queue` | enqueue · claim · complete | Postgres table | in-mem queue |
 | `MonitoringClient` | errorsSince(deploy, change) | Datadog MCP | synthetic feed |
-| `DashboardApi` | typed HTTP contract (see §6) | Hono routes | mock server |
+| `DashboardApi` | typed tRPC router (see §6) | tRPC standalone server (`@autogate/api`) | in-mem store + mock context |
 
 ## 5. Key contracts
 
@@ -125,18 +125,25 @@ const decision = decide({ verdicts, gate: green, policy })
 
 ## 6. DashboardApi surface
 
-(Designer builds the Next.js dashboard against this; mock server available from day one. No auth for hackday.)
+The DashboardApi is a **tRPC router** (`@autogate/api`), not REST. It is the single typed contract for the orchestrator/API ↔ dashboard seam: the server serves `appRouter` over a framework-free tRPC standalone adapter; the dashboard imports only the `AppRouter` *type* and gets end-to-end inference (rename a procedure field → the dashboard fails to compile). The dashboard consumes it via the modern `@trpc/tanstack-react-query` integration (typed `queryOptions` + native TanStack Query hooks). Build against the in-memory store + mock context from day one. No auth for hackday.
 
+```ts
+appRouter = {
+  health:  query() → { status: 'ok'; time: string }                          // liveness
+  runs: {
+    list:      query({ repo?, status?, limit })   → RunSummary[]              // (cursor pagination later)
+    byId:      query({ runId })                   → RunDetail
+    override:  mutation({ runId, action, reason }) → RunDetail                // action: 'approve_merge' | 'block'
+    rollback:  mutation({ runId })                → RunDetail
+    onUpdate:  subscription({ runId })            → RunDetail deltas (SSE)    // replaces GET /api/runs/:id/stream
+  }
+  metrics: query()                                → TrustMetrics
+  repos:   query()                                → RepoSummary[]
+  stream:  subscription()                         → RunSummary deltas (SSE)   // replaces GET /api/stream
+}
 ```
-GET  /api/runs?repo=&status=&cursor=&limit=      → { items: RunSummary[], nextCursor? }
-GET  /api/runs/:runId                            → RunDetail
-POST /api/runs/:runId/override  { action, reason } → RunDetail   // 'approve_merge' | 'block'
-POST /api/runs/:runId/rollback                   → RunDetail
-GET  /api/metrics                                → TrustMetrics
-GET  /api/repos                                  → RepoSummary[]
-GET  /api/stream                  (SSE)          → RunSummary deltas
-GET  /api/runs/:runId/stream      (SSE)          → RunDetail deltas
-```
+
+Inputs are Zod-validated; the SSE streams map to tRPC v11 SSE **subscriptions** (`httpSubscriptionLink`). All payload types below are unchanged from the REST design.
 
 ```ts
 type RunSummary = {
@@ -173,7 +180,7 @@ type RepoSummary = { id: string; name: string; agents: string[] }
 
 ## 8. Stack
 
-TypeScript monorepo **scaffolded via `create-turbo`** (pnpm workspaces + Turborepo). Functional style, strict types. Orchestrator/API: Node + Hono. Agent runtime: Claude Agent SDK. Sandbox: Docker. Store: Postgres + Drizzle. Queue: Postgres table. Memory: Qdrant. Dashboard: Next.js (the scaffold's `apps/web`). Monitoring: Datadog MCP. Infra: `setup.sh` + `docker-compose.yml` + `infra/repo-configs/{askable,autogate}.ts`. Verification gate per step: `turbo check-types` + exercising the artifact (no test framework / no exhaustive suites).
+TypeScript monorepo **scaffolded via `create-turbo`** (pnpm workspaces + Turborepo). Functional style, strict types. Orchestrator/API: Node + **tRPC v11** (standalone adapter, `apps/api`) — the typed contract lives in `packages/api` (`@autogate/api`). Agent runtime: Claude Agent SDK. Sandbox: Docker. Store: Postgres + Drizzle. Queue: Postgres table. Memory: Qdrant. Dashboard: Next.js (the scaffold's `apps/web`), consuming tRPC via `@trpc/tanstack-react-query` + TanStack Query v5. Monitoring: Datadog MCP. Infra: `setup.sh` + `docker-compose.yml` + `infra/repo-configs/{askable,autogate}.ts`. Verification gate per step: `turbo check-types` + exercising the artifact (no test framework / no exhaustive suites).
 
 ## 9. Build order
 
