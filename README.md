@@ -147,6 +147,16 @@ pnpm exec turbo link
 pnpm exec turbo link
 ```
 
+## Layer 1 gate (CI)
+
+PRs are gated by [`.github/workflows/gate.yml`](.github/workflows/gate.yml),
+which runs `check-types`, `lint`, `build` (and `test` when any package declares
+one) as distinct check runs that Autogate reads. CodeRabbit ("bugbot") adds a
+review check via [`.coderabbit.yaml`](.coderabbit.yaml) — it requires the
+[CodeRabbit GitHub App](https://github.com/apps/coderabbitai) to be installed
+(see [`.github/CODERABBIT.md`](.github/CODERABBIT.md)). To adopt the same gate on
+another repo (e.g. `askable-services`), use [`infra/gate-template/`](infra/gate-template/).
+
 ## Useful Links
 
 Learn more about the power of Turborepo:

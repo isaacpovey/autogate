@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+#
+# CodeRabbit (a.k.a. "bugbot") config. This is one of Autogate's Layer 1 checks:
+# CodeRabbit posts a `CodeRabbit` check run on every PR, which awaitAllChecks
+# reads alongside the gate.yml jobs. It only runs once the CodeRabbit GitHub App
+# is installed on the repo (see .github/CODERABBIT.md) — config alone does
+# nothing without the App.
+language: en-GB
+
+reviews:
+  # Surface a pass/fail check run (not just a review comment) so Autogate's
+  # gate can treat CodeRabbit as a required, machine-readable Layer 1 check.
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  # Functional-style monorepo conventions CodeRabbit should enforce, mirroring
+  # the repo's CLAUDE.md house rules.
+  path_instructions:
+    - path: "**/*.{ts,tsx}"
+      instructions: >-
+        Enforce functional style: no mutation (prefer map/reduce over
+        for+push+let), no `as` casts or `any` outside test files, and functions
+        in the `(dependencies) => (arguments)` shape with destructured object
+        arguments. Flag comments that merely restate obvious behaviour.
+  path_filters:
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!pnpm-lock.yaml"
+
+chat:
+  auto_reply: true

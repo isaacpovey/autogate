@@ -1,0 +1,102 @@
+name: autogate-gate
+
+# Autogate Layer 1 gate — portable template.
+#
+# Drop this in `.github/workflows/` on any repo you want Autogate to gate. Each
+# job surfaces as a distinct GitHub check run that Autogate's awaitAllChecks
+# reads; Autogate only proceeds to its AI agents once these (plus CodeRabbit, if
+# installed) are green. See ./README.md for adoption + branch-protection setup.
+#
+# PARAMETERS — edit the `env` block below to fit the target repo:
+#   NODE_VERSION   Node major to run on.
+#   RUN_PREFIX     How to invoke a task. Turborepo repos: "pnpm turbo run".
+#                  Plain pnpm-workspace repos: "pnpm run". Single-package repos:
+#                  "pnpm run".
+#   INSTALL_CMD    Dependency install command (kept frozen for reproducible CI).
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: autogate-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  RUN_PREFIX: "pnpm turbo run"
+  INSTALL_CMD: "pnpm install --frozen-lockfile"
+
+jobs:
+  check-types:
+    name: check-types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: ${{ env.INSTALL_CMD }}
+      - run: ${{ env.RUN_PREFIX }} check-types
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: ${{ env.INSTALL_CMD }}
+      - run: ${{ env.RUN_PREFIX }} lint
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: ${{ env.INSTALL_CMD }}
+      - run: ${{ env.RUN_PREFIX }} build
+
+  # Only run the `test` check when a `test` script exists, so a repo without a
+  # suite still produces a clean, fast gate (and never blocks awaitAllChecks).
+  detect-tests:
+    name: detect-tests
+    runs-on: ubuntu-latest
+    outputs:
+      has-tests: ${{ steps.scan.outputs.has-tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: scan
+        run: |
+          if grep -rlE '"test"[[:space:]]*:' --include=package.json . >/dev/null 2>&1; then
+            echo "has-tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    name: test
+    needs: detect-tests
+    if: needs.detect-tests.outputs.has-tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: ${{ env.INSTALL_CMD }}
+      - run: ${{ env.RUN_PREFIX }} test

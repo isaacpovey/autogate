@@ -1,0 +1,90 @@
+name: gate
+
+# Layer 1 gate for Autogate. Every job below surfaces as a distinct GitHub
+# check run on the PR. Autogate's VcsProvider.awaitAllChecks reads these check
+# runs by name and only proceeds (to Layer 2 agents) once they are all green.
+on:
+  pull_request:
+    branches: [main]
+
+# A newer push to the same PR cancels the in-flight gate run so the check runs
+# always reflect the latest commit (keeps awaitAllChecks latency low).
+concurrency:
+  group: gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-types:
+    name: check-types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run check-types
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build
+
+  # Gate which packages declare a `test` script. Its output drives whether the
+  # `test` check run below actually executes work or short-circuits, so the
+  # gate never blocks waiting on a test suite that does not exist yet.
+  detect-tests:
+    name: detect-tests
+    runs-on: ubuntu-latest
+    outputs:
+      has-tests: ${{ steps.scan.outputs.has-tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: scan
+        run: |
+          if grep -rlE '"test"[[:space:]]*:' --include=package.json apps packages >/dev/null 2>&1; then
+            echo "has-tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    name: test
+    needs: detect-tests
+    if: needs.detect-tests.outputs.has-tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run test
