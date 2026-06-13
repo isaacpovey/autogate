@@ -11,6 +11,9 @@ importers:
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
+      tsx:
+        specifier: ^4.20.6
+        version: 4.22.4
       turbo:
         specifier: ^2.9.18
         version: 2.9.18
@@ -126,6 +129,65 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  packages/agent-sdk:
+    dependencies:
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/agents:
+    dependencies:
+      '@autogate/agent-sdk':
+        specifier: workspace:*
+        version: link:../agent-sdk
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/api:
     dependencies:
       '@autogate/contracts':
@@ -150,6 +212,37 @@ importers:
       eslint:
         specifier: ^9.39.1
         version: 9.39.1
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/cli:
+    dependencies:
+      '@autogate/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@autogate/evals':
+        specifier: workspace:*
+        version: link:../evals
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.22.4
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -208,6 +301,40 @@ importers:
       typescript-eslint:
         specifier: ^8.50.0
         version: 8.50.0(eslint@9.39.1)(typescript@5.9.2)
+
+  packages/evals:
+    dependencies:
+      '@autogate/agent-sdk':
+        specifier: workspace:*
+        version: link:../agent-sdk
+      '@autogate/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.22.4
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
 
   packages/memory-qdrant:
     dependencies:
