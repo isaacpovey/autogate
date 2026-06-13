@@ -21,9 +21,10 @@ Implement the `Store` and `Queue` ports over Postgres with Drizzle, including mi
 - Seed script for demo data.
 
 ## Definition of Done
-- Contract parity test: `Store`/`Queue` pass the **same** test suite as the in-mem mocks from ticket 00.
-- `claim` is concurrency-safe (two workers never claim the same job) — proven by a concurrent test.
-- Migrations run clean from empty DB via the CLI (ticket 13).
+- `pnpm turbo check-types` passes; adapters satisfy the `Store`/`Queue` interfaces at compile time.
+- A `tsx` smoke script exercises the same operations as the in-mem mocks and matches their behavior.
+- `claim` is concurrency-safe (`FOR UPDATE SKIP LOCKED`) — verified by a small concurrent `tsx` script (two claimers, no double-claim).
+- Migrations run clean from an empty DB via the CLI (ticket 13).
 
 ## Notes
 - Pagination shape must match `DashboardApi` `/api/runs` (`{ items, nextCursor }`).

@@ -1,18 +1,18 @@
 ---
 id: 10-monitoring-datadog
-title: MonitoringClient (Datadog MCP) — L3b
+title: MonitoringClient (Datadog MCP) — Layer 3
 stream: B
 depends_on: [00-contracts]
 phase: 1
 ---
 
-# 10 — Monitoring (Datadog MCP)
+# 10 — Monitoring (Datadog MCP) — Layer 3
 
 ## Goal
-Implement `MonitoringClient` over the Datadog MCP and the post-merge monitor `CheckSource` (layer `monitor`) that detects **new errors correlated to a change** and emits a canary/rollback signal.
+Implement `MonitoringClient` over the Datadog MCP and the post-merge monitor `CheckSource` (`layer: 'monitor'`) that detects **new errors correlated to a change** and emits a canary/rollback signal.
 
 ## Owns
-`packages/monitoring-datadog` — Datadog MCP adapter + the monitor agent.
+`packages/monitoring-datadog` — Datadog MCP adapter + the monitor source.
 
 ## Deliverables
 - `MonitoringClient.errorsSince({ deploy, change, window })` → new/regressed error groups attributable to the change.
@@ -20,9 +20,10 @@ Implement `MonitoringClient` over the Datadog MCP and the post-merge monitor `Ch
 - Maps results into `RunDetail.monitoring` ({ canaryPercent, newErrors, window, rolledBack }).
 
 ## Definition of Done
+- `pnpm turbo check-types` passes.
 - Against the **synthetic-error mock** from ticket 00: a spike of new errors → `fail` verdict + rollback signal; flat baseline → `pass`.
 - Correlation logic links errors to the change window/service, not just absolute error count.
 
 ## Notes
 - Datadog MCP availability in the runtime env is a known risk — the synthetic mock keeps the demo deterministic and is the eval driver.
-- This realizes the "Datadog flags it → rollback" beat of the demo narrative.
+- Realizes the "Datadog flags it → rollback" beat of the demo narrative.

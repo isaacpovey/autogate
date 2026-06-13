@@ -15,15 +15,17 @@ Make the whole system come up on a fresh single EC2 instance with one command, a
 `infra/` — `setup.sh`, `docker-compose.yml`, `repo-configs/{askable,autogate}.ts`, `.env.example`.
 
 ## Deliverables
-- `setup.sh`: install Docker + Compose, clone repo, write `.env`, run DB migrations, run repo ingestion, `docker-compose up`.
-- `docker-compose.yml`: services for Postgres, Qdrant, orchestrator/API, dashboard, and N sandbox workers.
-- `repo-configs/askable.ts` and `repo-configs/autogate.ts`: `RepoConfig` with `bootCmd`, `testCmd`, `lint/typecheck`, `ragInclude`, `sensitivePaths`, and the `checks` list (agents vs external — e.g. bugbot replacing an agent on askable).
-- `.env.example` documenting all required secrets (GitHub App, Datadog, Anthropic, DB).
+- `setup.sh`: install Docker + Compose + Node/pnpm, clone repo, `pnpm install`, write `.env`, run DB migrations, run repo ingestion, `docker-compose up`.
+- `docker-compose.yml`: services for Postgres, Qdrant, orchestrator/API (`apps/orchestrator`), dashboard (`apps/web`), and worker(s).
+- `repo-configs/askable.ts` and `repo-configs/autogate.ts`: `RepoConfig` with `ragInclude`, `sensitivePaths`, `requiredChecks` (default `'all'` — every existing GitHub check incl. bugbot must pass), and `agents` (which Layer-2 agents run).
+- `.env.example` documenting required secrets (GitHub App, Datadog, Anthropic, DB).
 
 ## Definition of Done
+- `pnpm turbo check-types` passes for config files.
 - On a clean box: `./setup.sh` → full stack healthy; dashboard reachable; a queued fixture run completes.
 - Both repo-configs load and validate against the `RepoConfig` schema.
 
 ## Notes
+- Monorepo is already scaffolded (`create-turbo`) — `setup.sh` just installs + boots; no scaffolding here.
 - Single-node for the demo; workers scale via `docker-compose --scale worker=N`.
-- This is the "watch it boot on a fresh box" demo opener.
+- The "watch it boot on a fresh box" demo opener.

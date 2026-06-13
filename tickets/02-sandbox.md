@@ -1,6 +1,6 @@
 ---
 id: 02-sandbox
-title: Sandbox runner (Docker)
+title: Sandbox runner (Docker) — clone + read
 stream: A
 depends_on: [00-contracts]
 phase: 1
@@ -9,23 +9,21 @@ phase: 1
 # 02 — Sandbox runner (Docker)
 
 ## Goal
-Implement `SandboxRunner` over Docker: create an isolated container for a run, clone the PR ref, expose scoped repo read/exec to agents, optionally boot the target app (L3a), and tear down.
+Implement `SandboxRunner` over Docker: create an isolated container for a run, clone the PR ref, and expose **scoped repo read/grep** to the Layer-2 agents. No app boot, no test execution (Layer 1 already ran the repo's checks on GitHub).
 
 ## Owns
 `packages/sandbox` — the Docker adapter for `SandboxRunner`.
 
 ## Deliverables
 - `clone({ repoUrl, ref })` → working checkout in container.
-- `exec({ cmd, cwd, timeoutMs })` → `{ stdout, stderr, code }` (used for L1 tests/lint/types and `bootCmd`).
-- `bootApp({ repoConfig })` → boots the app via `repoConfig.bootCmd`, waits for health, returns `RunningApp { baseUrl }`; used only for L3a.
+- `RepoAccess` facade (scoped `read`/`grep`/`ls`) handed to agents in `RunContext`.
 - `teardown()` → remove container/volumes.
-- `RepoAccess` facade (scoped read/grep) handed to agents in `RunContext`.
 
 ## Definition of Done
-- Contract test: behaves identically (for read/exec) to the in-mem mock from ticket 00 on a fixture repo.
-- Can clone a public ref, run `echo`/`ls`, and tear down cleanly with no leaked containers.
-- `bootApp` proven against a trivial sample service (health endpoint returns 200) before integration tackles `askable-services`.
+- `pnpm turbo check-types` passes.
+- Behaves identically (for read/grep) to the in-mem mock from ticket 00 on a fixture repo.
+- Clones a public ref, lists/reads files, tears down cleanly with no leaked containers.
 
 ## Notes
-- Fallback adapter (git-worktree + subprocess) is acceptable if Docker is fiddly on the EC2 box — keep `SandboxRunner` the seam so it swaps cleanly.
-- Resource limits + per-run timeout to avoid runaway boots.
+- Fallback adapter (git-worktree) is acceptable if Docker is fiddly on EC2 — keep `SandboxRunner` the seam so it swaps cleanly.
+- No `bootApp`/`exec` of tests — those were Layer 3a / Layer 1 responsibilities that are now gone or on GitHub.

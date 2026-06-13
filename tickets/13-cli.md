@@ -23,6 +23,7 @@ The developer entrypoint that makes iteration fast: run a single agent, run eval
 - `run enqueue --repo <id> --pr <n>` — enqueue a real run.
 
 ## Definition of Done
+- `pnpm turbo check-types` passes.
 - Every command works against **mocks** (no infra) where applicable.
 - `agent run` + `agent eval` operate on a real agent folder and print structured output.
 - Used by ticket 06's `setup.sh` for migrate/ingest.

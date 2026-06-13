@@ -14,19 +14,19 @@ Swap mocks for real adapters, boot the whole system on EC2, run both demo repos 
 ## Deliverables
 - Wire real adapters into the orchestrator (replace mocks): GitHub, Docker sandbox, Postgres, Qdrant, Datadog, Claude SDK.
 - Boot on a fresh EC2 box via `setup.sh`; confirm dashboard + workers healthy.
-- Prove L3a boot of `askable-services` in the sandbox (the top risk) — or fall back to boot-once if per-run is too slow.
-- Register GitHub App on both `askable-services` and `autogate`.
+- Register the GitHub App on both `askable-services` and `autogate`; **confirm both repos have GitHub checks + bugbot enabled** (the Layer 1 gate is only meaningful if they do).
 - Author + open the **seeded demo PRs**:
-  1. Clean copy tweak → all pass → **auto-merge**.
-  2. Risky/high-blast-radius change → agents agree → merges with monitoring.
-  3. Auth change → security agent + bugbot **disagree**, sensitive path → **escalate w/ brief** → human override w/ reason → captured to memory + eval.
-  4. Regressing change → **Datadog** flags new errors → **rollback**.
+  1. Clean copy tweak → all GitHub checks green → agents pass → **auto-merge**.
+  2. Risky/high-blast-radius change → checks green → agents agree → merges with monitoring.
+  3. Sensitive-path change → checks green, but **security + architecture agents flag** → **escalate w/ brief** → human override w/ reason → captured to memory + eval.
+  4. Regressing change → merged → **Datadog** flags new errors → **rollback**.
 
 ## Definition of Done
+- `pnpm turbo check-types` passes across the monorepo.
 - Each of the four demo PRs produces the intended decision live in the dashboard, on a real box.
-- Dogfood: a freshly opened PR on `autogate` itself is reviewed by the system.
+- Dogfood: a freshly opened PR on `autogate` itself is reviewed by the system once its own checks go green.
 - One override visibly feeds the `decisions` memory + eval set.
 
 ## Notes
-- Time-box the `askable-services` boot investigation early; it gates the L3a beat.
+- The top risk is now `awaitAllChecks` latency (bugbot/CI can be slow) — verify the gate resolves promptly when checks complete and doesn't hold a worker.
 - Rehearse the demo run order; keep a deterministic fallback (synthetic Datadog feed) if live signals are flaky.

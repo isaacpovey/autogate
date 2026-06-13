@@ -9,22 +9,23 @@ phase: 1
 # 12 — Evals harness + fixtures
 
 ## Goal
-Two-tier eval system that lets agents self-verify and measures orchestrator accuracy — the acceptance gate for nearly every other ticket.
+A lightweight, two-tier eval system that is **the verification mechanism for agent and orchestrator behavior** (how an agent proves it works after a change) and demonstrates the trust loop. Focused fixtures, not exhaustive coverage.
 
 ## Owns
-`packages/evals` — Vitest harness, fixture loader, scorers, labeled fixture PRs.
+`packages/evals` — a small `tsx`-runnable harness (no test framework), fixture loader, scorers, labeled fixture PRs.
 
 ## Deliverables
 - **Per-agent eval runner:** loads `agents/<id>/evals/*.json` (fixture PR + expected verdict labels), runs the agent against `AgentSdk` (real or mock), scores status / risk-band / key findings, prints pass-rate. Backs `pnpm agent eval <id>`.
-- **End-to-end eval runner:** replays labeled fixture PRs through the orchestrator against **all mocks**; asserts final `Decision` vs ground truth; reports **escalation precision** (false escalations) and **recall** (missed escalations).
-- **Fixture set:** the seeded demo PRs (clean / risky / security-disagreement / regressing) plus a handful of override cases.
-- Scorers tolerant to phrasing (assert structured fields, not prose).
+- **End-to-end eval runner:** replays labeled fixture PRs through the orchestrator against **all mocks** (gate forced green); prints final `Decision` vs ground truth and escalation **precision/recall**.
+- **Fixture set:** the seeded demo PRs (clean / risky / flagged / regressing) plus a couple of override cases.
+- Scorers assert structured fields, not prose.
 
 ## Definition of Done
-- `pnpm eval` runs both tiers headless with zero infra (all mocks).
-- Reports per-agent pass-rates + orchestrator precision/recall on the fixture set.
+- `pnpm turbo check-types` passes.
+- `pnpm eval` runs both tiers headless with zero infra (all mocks) and prints a readable report.
 - An override fixture demonstrates the precedent-retrieval path changing a verdict.
 
 ## Notes
-- This harness IS the DoD for tickets 01, 08, 09, 10 — build the runner early in stream B.
+- Build the per-agent runner early — agents (ticket 08) use it to verify their work as they iterate.
+- Keep fixtures focused (a handful per agent); this is verification, not exhaustive coverage.
 - Overrides captured at runtime should be exportable into new fixtures (closes the trust loop).

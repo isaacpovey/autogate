@@ -25,8 +25,8 @@ Implement `MemoryClient` over Qdrant across three collections, plus the repo-ing
 - Feedback writer helper: `recordDecision({ pr, verdicts, override })` → `decisions`.
 
 ## Definition of Done
-- Contract parity with the in-mem vector mock from ticket 00.
-- `ingestRepo` on a small fixture repo populates `code_knowledge`; a known query returns the expected file in top-k.
+- `pnpm turbo check-types` passes; adapter satisfies `MemoryClient` at compile time (parity with the in-mem vector mock).
+- `ingestRepo` on a small fixture repo populates `code_knowledge`; a known query returns the expected file in top-k (verified via the `ingest` CLI, not a test suite).
 - Round-trip: `recordDecision` then `query(decisions)` retrieves the precedent.
 
 ## Notes

@@ -1,6 +1,6 @@
 ---
 id: 08-agents
-title: Agents (6 L2 + 2 L3a)
+title: Agents (6 Layer-2 AI agents)
 stream: B
 depends_on: [07-agent-sdk]
 phase: 1
@@ -9,13 +9,12 @@ phase: 1
 # 08 — Agents
 
 ## Goal
-Author the agent library. Each agent is one self-contained folder (prompt + schema + `toVerdict` + evals) assembled via `createAiAgent`. **Each agent is independently parallelizable** — can be a separate sub-agent task.
+Author the Layer-2 agent library. Each agent is one self-contained folder (prompt + schema + `toVerdict` + evals) assembled via `createAiAgent`. **Each agent is independently parallelizable** — a separate sub-agent task.
 
 ## Owns
 `packages/agents/<id>/` — one folder per agent: `agent.ts`, `prompt.md`, `schema.ts`, `evals/*.json`.
 
-## Agents to build
-Layer 2 (AI, pre-merge; diff + repo + RAG):
+## Agents to build (Layer 2 — AI, pre-merge; diff + repo + RAG, no app boot)
 - `semantic-review` — does the change do what it says; intent vs implementation.
 - `blast-radius` — dependency graph of affected systems/paths (uses `code_knowledge`).
 - `risk-scoring` — scope/complexity/sensitivity → `riskContribution`.
@@ -23,16 +22,14 @@ Layer 2 (AI, pre-merge; diff + repo + RAG):
 - `security-review` — static: secrets, injection, authz, unsafe patterns.
 - `architecture-review` — boundary/coupling/layering concerns.
 
-Layer 3a (runtime; require `ctx.app`, so `appliesTo` checks for it):
-- `web-testing` — drive the booted app, exercise affected user paths.
-- `pen-test` — probe the booted app's affected endpoints (authz, injection, IDOR).
+(Layer 3a web-testing / pen-test agents were dropped — no app boot.)
 
 ## Definition of Done
-- Each agent passes its own `pnpm agent eval <id>` fixture set (status / risk-band / key findings vs labels).
-- L3a agents `appliesTo` returns false when `ctx.app` is absent (so they're skipped without a boot).
-- Each agent runs in isolation via `pnpm agent run <id> --fixture <pr>` and prints a valid `Verdict`.
+- `pnpm turbo check-types` passes for each agent package.
+- Each agent runs in isolation via `pnpm agent run <id> --fixture <pr>` (against the `AgentSdk` mock or real) and prints a schema-valid `Verdict`.
+- `pnpm agent eval <id>` passes the agent's focused fixtures — **run it to verify the agent** before the step is done.
 
 ## Notes
 - Iterate prompt/schema in-folder; never touch the orchestrator.
 - Keep each agent's output schema tight — it drives the dashboard findings.
-- Registry assembly (the list of `CheckSource`s) is per-`RepoConfig.checks`.
+- Which agents run per repo comes from `RepoConfig.agents`.
