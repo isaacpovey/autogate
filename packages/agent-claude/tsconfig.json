@@ -4,6 +4,6 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["src", "run-live.ts"],
+  "include": ["src", "run-live.ts", "run-live-all.ts"],
   "exclude": ["node_modules", "dist"]
 }

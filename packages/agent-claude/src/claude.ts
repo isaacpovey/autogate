@@ -21,7 +21,8 @@ type ClaudeAgentSdkDeps = {
 };
 
 const DEFAULT_MODEL = 'claude-opus-4-8';
-const DEFAULT_MAX_TOOL_ROUNDS = 6;
+const DEFAULT_MAX_TOOL_ROUNDS = 3;
+const EFFORT = 'low';
 const FINAL_INSTRUCTION =
   'Now output your final verdict as structured JSON matching the required schema. Base it strictly on what you found while investigating above — do not introduce new claims.';
 
@@ -140,6 +141,7 @@ const investigate =
       model,
       max_tokens: 12000,
       thinking: { type: 'adaptive' },
+      output_config: { effort: EFFORT },
       system,
       tools,
       messages,
@@ -199,7 +201,7 @@ export const createClaudeAgentSdk = ({
         thinking: { type: 'adaptive' },
         system: instructions,
         messages: [...investigated, { role: 'user', content: FINAL_INSTRUCTION }],
-        output_config: { format: zodOutputFormat(outputSchema) },
+        output_config: { format: zodOutputFormat(outputSchema), effort: EFFORT },
       });
       return outputSchema.parse(extraction.parsed_output);
     },
