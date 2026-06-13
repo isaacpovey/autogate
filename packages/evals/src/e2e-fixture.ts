@@ -7,7 +7,7 @@ import { policySchema, pullRequestSchema, runDecisionSchema } from '@autogate/co
 const memoryRecordSchema = z.object({
   id: z.string(),
   text: z.string(),
-  metadata: z.record(z.union([z.string(), z.number(), z.boolean()])),
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 });
 
 const memorySeedSchema = z.object({
@@ -52,12 +52,12 @@ export const e2eFixtureSchema = z
     name: z.string(),
     description: z.string().optional(),
     pr: pullRequestSchema,
-    files: z.record(z.string()).optional(),
+    files: z.record(z.string(), z.string()).optional(),
     memory: memorySeedSchema.optional(),
     policy: policySchema.optional(),
     sensitivePaths: z.array(z.string()).optional(),
     requiredChecks: z.union([z.literal('all'), z.array(z.string())]).optional(),
-    agents: z.record(z.unknown()).default({}),
+    agents: z.record(z.string(), z.unknown()).default({}),
     expect: e2eExpectSchema.optional(),
     trustLoop: trustLoopSchema.optional(),
   })

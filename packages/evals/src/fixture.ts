@@ -6,7 +6,7 @@ import { pullRequestSchema, verdictStatusSchema } from '@autogate/contracts';
 const memoryRecordSchema = z.object({
   id: z.string(),
   text: z.string(),
-  metadata: z.record(z.union([z.string(), z.number(), z.boolean()])),
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 });
 
 export const riskBandSchema = z.enum(['low', 'medium', 'high']);
@@ -31,7 +31,7 @@ export const fixtureSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   pr: pullRequestSchema,
-  files: z.record(z.string()).optional(),
+  files: z.record(z.string(), z.string()).optional(),
   memory: z
     .object({
       code_knowledge: z.array(memoryRecordSchema).optional(),

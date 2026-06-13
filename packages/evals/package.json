@@ -18,7 +18,7 @@
     "@autogate/agents": "workspace:*",
     "@autogate/contracts": "workspace:*",
     "api": "workspace:*",
-    "zod": "^3.25.76"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
