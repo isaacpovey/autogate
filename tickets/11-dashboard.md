@@ -14,6 +14,8 @@ The release-view UI: a designer is building this in Claude design against the `D
 ## Owns
 `apps/web` (the scaffold's Next.js app) — App Router + Tailwind + shadcn/ui. The tRPC + TanStack Query foundation is **already scaffolded** (`apps/web/trpc/*`: query-client factory, `TRPCReactProvider`, RSC server proxy + `HydrateClient`, `useTRPC`), consuming `@autogate/api`'s `AppRouter` type end-to-end via the modern `@trpc/tanstack-react-query` integration (`queryOptions` + native TanStack Query hooks — no legacy `useQuery` hooks). Build new surfaces on that.
 
+**The full DashboardApi surface is already live, mock-backed** (`apps/api` + `apps/api/src/mock-dashboard.ts`): `runs.list` (paginated, repo/status filters), `runs.byId` (full `RunDetail` with brief/findings/gateChecks/timeline), `runs.override` + `runs.rollback` mutations (mutate + return updated detail), `metrics`, `repos`. Fixtures cover every decision/status state (auto_merge, escalate, pending, rolled_back, awaiting_checks, running). Build all surfaces against this now; nothing changes when ticket 01 swaps the real provider in. **Live SSE** (`stream`/`runs.onUpdate`) is not yet implemented — use query refetch/invalidation for freshness for now.
+
 ## Surfaces
 1. **Release stream (home):** live table across both repos — PR, repo, risk, **gate status (Layer 1 GitHub checks incl. bugbot)**, Layer-2 check chips, decision. Status includes `awaiting_checks` (gate not yet green). Filters by repo/status via `runs.list` input. Live via the `stream` subscription (tRPC SSE).
 2. **Run detail:** decision + reasons + brief, the raw **`gateChecks`** (Layer 1 GitHub checks with conclusions/links), every Layer-2 `CheckResult`, monitoring panel. Query `runs.byId`; live via the `runs.onUpdate` subscription.

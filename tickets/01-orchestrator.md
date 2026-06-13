@@ -25,7 +25,7 @@ The core domain loop: when a PR's existing GitHub checks are all green (Layer 1 
   4. Persist verdicts → `decide` → post status/brief via `VcsProvider`.
 - `decide({ verdicts, gate, policy }) => Decision`: aggregate `riskContribution`, apply `riskEscalateThreshold`, `escalateOnDisagreement`, `alwaysEscalatePaths`.
 - `buildBrief({ pr, verdicts }) => string`: the "what to look at and why" summary for escalations.
-- Back the `DashboardApi` tRPC procedures (`@autogate/api`, spec §6) with the `Store` instead of the scaffold's in-memory mock: `runs.list`/`runs.byId`/`metrics`/`repos` queries, `runs.override`/`runs.rollback` mutations, `stream`/`runs.onUpdate` subscriptions. Resolvers read ports from context — no provider logic in procedures.
+- Implement the real `DashboardApi` provider (the port in `@autogate/contracts`) backed by the `Store` + orchestrator outputs, and inject it in `apps/api/src/index.ts` in place of `createMockDashboardApi()` — a **one-line swap**. The tRPC router (`@autogate/api`, spec §6) already delegates every procedure (`listRuns`/`getRun`/`metrics`/`repos`/`override`/`rollback`) to the injected provider, so no router, procedure, or dashboard changes. This is where the derived view fields (decision, riskScore, gate/check tallies) get computed from verdicts + check runs. Then add the `stream`/`runs.onUpdate` SSE subscriptions (additive — no shape changes).
 
 ## Definition of Done
 - `pnpm turbo check-types` passes; no import of any adapter package (enforced by lint/review).

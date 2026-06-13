@@ -125,23 +125,25 @@ const decision = decide({ verdicts, gate: green, policy })
 
 ## 6. DashboardApi surface
 
-The DashboardApi is a **tRPC router** (`@autogate/api`), not REST. It is the single typed contract for the orchestrator/API ↔ dashboard seam: the server serves `appRouter` over a framework-free tRPC standalone adapter; the dashboard imports only the `AppRouter` *type* and gets end-to-end inference (rename a procedure field → the dashboard fails to compile). The dashboard consumes it via the modern `@trpc/tanstack-react-query` integration (typed `queryOptions` + native TanStack Query hooks). Build against the in-memory store + mock context from day one. No auth for hackday.
+The DashboardApi is a **tRPC router** (`@autogate/api`), not REST. It is the single typed contract for the orchestrator/API ↔ dashboard seam: the server serves `appRouter` over a framework-free tRPC standalone adapter; the dashboard imports only the `AppRouter` *type* and gets end-to-end inference (rename a procedure field → the dashboard fails to compile). The dashboard consumes it via the modern `@trpc/tanstack-react-query` integration (typed `queryOptions` + native TanStack Query hooks). No auth for hackday.
+
+**The router delegates to an injected `DashboardApi` provider** (the port in `@autogate/contracts`). The procedure *shapes* are the contract and are fixed; only the provider swaps. A rich in-memory mock provider (`apps/api/src/mock-dashboard.ts`) ships now so the dashboard builds every surface in parallel; ticket 01 injects the real Store/orchestrator-backed provider — a one-line change at the server boundary, no router/procedure/dashboard edits.
 
 ```ts
 appRouter = {
   health:  query() → { status: 'ok'; time: string }                          // liveness
   runs: {
-    list:      query({ repo?, status?, limit })   → RunSummary[]              // (cursor pagination later)
+    list:      query({ repo?, status?, cursor?, limit? }) → RunsListResponse  // { items: RunSummary[], nextCursor? }
     byId:      query({ runId })                   → RunDetail
     override:  mutation({ runId, action, reason }) → RunDetail                // action: 'approve_merge' | 'block'
     rollback:  mutation({ runId })                → RunDetail
-    onUpdate:  subscription({ runId })            → RunDetail deltas (SSE)    // replaces GET /api/runs/:id/stream
   }
   metrics: query()                                → TrustMetrics
   repos:   query()                                → RepoSummary[]
-  stream:  subscription()                         → RunSummary deltas (SSE)   // replaces GET /api/stream
 }
 ```
+
+**Not yet implemented — live SSE deltas:** the spec's `stream` (RunSummary deltas) and `runs.onUpdate` (RunDetail deltas) map to tRPC v11 SSE subscriptions. They'll be added without changing any existing procedure. Until then the dashboard stays fresh via refetch/invalidation on the queries above.
 
 Inputs are Zod-validated; the SSE streams map to tRPC v11 SSE **subscriptions** (`httpSubscriptionLink`). All payload types below are unchanged from the REST design.
 

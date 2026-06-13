@@ -17,7 +17,7 @@ Define every shared type, port (interface), and the `DashboardApi` schema, plus 
 ## Deliverables
 - Zod schemas + inferred TS types for: `Verdict`, `Finding`, `Severity`, `VerdictStatus`, `RunContext`, `PullRequest`, `CheckSource`, `Policy`, `RepoConfig`.
 - Port interfaces: `VcsProvider` (incl. `awaitAllChecks`, `listCheckRuns`), `SandboxRunner`, `AgentSdk`, `MemoryClient`, `Store`, `Queue`, `MonitoringClient`.
-- `DashboardApi` request/response schemas (`RunSummary`, `CheckResult`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec §6. **Note:** the `DashboardApi` is now a **tRPC router** (`@autogate/api`), not REST — these Zod schemas are consumed as the procedures' input/output types. `@autogate/api` currently ships scaffold copies of `RunSummary` + the `runs.list` input (`packages/api/src/schemas.ts`, marked to delete) until this package lands and they import from `@autogate/contracts`.
+- `DashboardApi` request/response schemas (`RunSummary`, `CheckResult`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec §6. **Note:** the `DashboardApi` is exposed as a **tRPC router** (`@autogate/api`), not REST — these Zod schemas + the `DashboardApi`/`Store` ports are consumed directly by it (the tRPC router delegates to an injected `DashboardApi` provider).
 - `packages/contracts/mocks/*` — an in-memory implementation of every port (deterministic, seedable) so all Phase-1 packages build without infra.
 
 ## Contract (authoritative source: spec §4–§6)

@@ -1,22 +1,23 @@
-import type { Store } from "@autogate/contracts";
+import type { DashboardApi } from "@autogate/contracts";
 
 /**
- * Per-request context. Holds the injected ports the procedures read from —
- * never concrete adapters. Swapping the in-memory mock for the real Postgres
- * `Store` (ticket 03) is a one-line change at the server boundary; no
- * procedure changes.
+ * Per-request context. Holds the injected `DashboardApi` provider the
+ * procedures delegate to — never a concrete adapter. Swapping the in-memory
+ * mock for the real Store/orchestrator-backed provider (ticket 01) is a
+ * one-line change at the server boundary; the router and its procedures —
+ * and therefore the dashboard — never change.
  */
 export type Context = {
-  store: Store;
+  dashboard: DashboardApi;
 };
 
 /**
- * `(dependencies) => (arguments)` — bind the ports once at boot, then hand the
- * returned function to a tRPC adapter as its `createContext`. The adapter calls
- * it per request (with request/response args we don't need yet, hence ignored).
+ * `(dependencies) => (arguments)` — bind the provider once at boot, then hand
+ * the returned function to a tRPC adapter as its `createContext`. The adapter
+ * calls it per request (with request/response args we don't need yet).
  */
 export const createContext =
-  (deps: { store: Store }) =>
+  (deps: { dashboard: DashboardApi }) =>
   async (): Promise<Context> => ({
-    store: deps.store,
+    dashboard: deps.dashboard,
   });

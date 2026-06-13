@@ -14,7 +14,7 @@ import { useTRPC } from "../../trpc/client";
 export function RunsList() {
   const trpc = useTRPC();
   const { data: health } = useSuspenseQuery(trpc.health.queryOptions());
-  const { data: runs } = useSuspenseQuery(
+  const { data: runList } = useSuspenseQuery(
     trpc.runs.list.queryOptions({ limit: 20 }),
   );
 
@@ -25,7 +25,7 @@ export function RunsList() {
         <small>({health.time})</small>
       </p>
       <ul>
-        {runs.map((run) => (
+        {runList.items.map((run) => (
           <li key={run.runId}>
             <code>{run.pr.repo}</code> #{run.pr.number} — {run.pr.title} —{" "}
             <strong>{run.decision}</strong> (risk {run.riskScore})
