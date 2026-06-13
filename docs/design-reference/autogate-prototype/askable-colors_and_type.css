@@ -1,0 +1,237 @@
+/* ============================================================
+   Askable — Colors & Type tokens
+   Soft lightmode palette: white / grey / black, red used sparingly
+   for logo and primary CTAs only.
+   Fonts: Bricolage Grotesque (display), Instrument Sans (UI/body)
+   ============================================================ */
+
+/* ---------- Fonts ---------- */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("./fonts/BricolageGrotesque.ttf") format("truetype-variations");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-Regular.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-Italic.ttf") format("truetype");
+  font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-Medium.ttf") format("truetype");
+  font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-MediumItalic.ttf") format("truetype");
+  font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-SemiBold.ttf") format("truetype");
+  font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-SemiBoldItalic.ttf") format("truetype");
+  font-weight: 600; font-style: italic; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-Bold.ttf") format("truetype");
+  font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-BoldItalic.ttf") format("truetype");
+  font-weight: 700; font-style: italic; font-display: swap; }
+
+:root {
+  /* ---------- Core palette ---------- */
+  /* Red — reserved for logo + primary CTAs */
+  --ask-red:            rgb(251, 81, 83);    /* primary brand red */
+  --ask-red-hover:      rgb(255, 121, 123);  /* lighter on hover */
+  --ask-red-deep:       rgb(83, 7, 15);      /* cover / deep red bg */
+  --ask-red-ink:        rgb(34, 6, 19);      /* "maroon ink" used for dark text on red surfaces */
+
+  /* Peach / pink tints — soft accent & CTA wash backgrounds */
+  --ask-peach:          rgb(255, 192, 200);
+  --ask-peach-soft:     rgb(255, 239, 241);
+  --ask-peach-paper:    rgb(255, 251, 250);
+
+  /* Ink (foreground) — near-black, never pure */
+  --ask-ink:            rgb(15, 15, 15);     /* primary text/button bg */
+  --ask-ink-2:          rgb(23, 23, 23);
+  --ask-ink-3:          rgb(34, 32, 32);
+  --ask-ink-muted:      rgb(106, 106, 106);
+
+  /* Paper / neutrals */
+  --ask-white:          rgb(255, 255, 255);
+  --ask-paper:          rgb(249, 245, 244);  /* warm off-white, card fills */
+  --ask-paper-cool:     rgb(245, 245, 245);
+  --ask-paper-warm:     rgb(249, 245, 243);
+  --ask-line:           rgb(217, 217, 217);  /* dividers, thin rules */
+  --ask-line-soft:      rgb(176, 176, 176);
+
+  /* Pastel accents — product category / illustration accents */
+  --ask-pastel-peach:   rgb(247, 191, 129);
+  --ask-pastel-mint:    rgb(156, 221, 204);
+  --ask-pastel-lilac:   rgb(223, 181, 255);
+  --ask-pastel-blue:    rgb(83, 131, 234);
+  --ask-pastel-yellow:  rgb(241, 218, 115);
+  --ask-pastel-navy:    rgb(5, 32, 60);
+
+  /* Shadow tones (matches Figma "ink shadow") */
+  --ask-shadow-05: rgba(44, 17, 11, 0.05);
+  --ask-shadow-10: rgba(44, 17, 11, 0.10);
+  --ask-shadow-line: rgba(34, 6, 19, 0.10);
+
+  /* ---------- Semantic ---------- */
+  --bg:              var(--ask-white);
+  --bg-subtle:       var(--ask-paper);
+  --bg-inverse:      var(--ask-ink);
+
+  --fg:              var(--ask-ink);
+  --fg-2:            var(--ask-ink-3);
+  --fg-muted:        var(--ask-ink-muted);
+  --fg-on-ink:       var(--ask-white);
+  --fg-on-red:       var(--ask-white);
+
+  --border:          var(--ask-line);
+  --border-soft:     rgba(34, 6, 19, 0.10);
+
+  --brand:           var(--ask-red);
+  --brand-ink:       var(--ask-red-ink);
+  --brand-deep:      var(--ask-red-deep);
+
+  /* ---------- Radii (soft, rounded everywhere) ---------- */
+  --radius-xs:   6px;
+  --radius-sm:   10px;
+  --radius-md:   16px;
+  --radius-lg:   20px;
+  --radius-xl:   30px;
+  --radius-2xl:  50px;
+  --radius-pill: 999px;
+
+  /* ---------- Spacing scale ---------- */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+  --sp-32: 128px;
+  --sp-40: 160px;
+
+  /* ---------- Elevation (subtle, warm) ---------- */
+  --elev-1: 0 1px 2px var(--ask-shadow-05);
+  --elev-2: 0 2.6px 9.9px 0 var(--ask-shadow-10);
+  --elev-3: 0 7.9px 13.2px -6.6px var(--ask-shadow-10),
+            0 2.6px 9.9px 0 var(--ask-shadow-10);
+  --elev-4: 0 10.5px 17.5px -8.7px var(--ask-shadow-10),
+            0 3.5px 13.1px 0 var(--ask-shadow-10);
+  --elev-card: 0 1px 0 rgba(255,255,255,0.7) inset, var(--elev-3);
+
+  /* ---------- Type families ---------- */
+  --font-display: "Bricolage Grotesque", "Bricolage Grotesque Placeholder", ui-sans-serif, system-ui, sans-serif;
+  --font-ui:      "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "Courier New", ui-monospace, monospace;
+
+  /* ---------- Display / heading sizes ----------
+     Askable uses large, tight-leading display type.
+     ExtraBold @ 96–100 for hero; SemiBold/Bold for sections.
+  */
+  --fz-display:  100px;
+  --fz-h1:       74px;
+  --fz-h2:       54px;
+  --fz-h3:       48px;
+  --fz-h4:       32px;
+  --fz-h5:       24px;
+  --fz-h6:       20px;
+
+  --fz-lead:     24px;  /* intro paragraphs */
+  --fz-body-lg:  21px;
+  --fz-body:     17px;  /* default body / nav label */
+  --fz-body-sm:  16px;
+  --fz-caption:  14px;
+  --fz-micro:    12px;
+
+  --lh-tight:    0.88;
+  --lh-display:  1.00;
+  --lh-snug:     1.12;
+  --lh-body:     1.48;
+  --lh-loose:    1.60;
+}
+
+/* ---------- Semantic type roles ---------- */
+.display, h1.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fz-display);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fz-h1);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fz-h2);
+  line-height: 0.94;
+  color: var(--fg);
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fz-h3);
+  line-height: 1;
+  color: var(--fg);
+}
+
+h4, .h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fz-h4);
+  line-height: 1.1;
+  color: var(--fg);
+}
+
+h5, .h5 {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fz-h5);
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+h6, .h6 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--fz-h6);
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+.lead {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: var(--fz-lead);
+  line-height: 1.2;
+  color: var(--fg);
+  opacity: 0.6;
+}
+
+p, .body {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: var(--fz-body);
+  line-height: var(--lh-body);
+  color: var(--fg);
+}
+
+.body-sm  { font-family: var(--font-ui); font-size: var(--fz-body-sm); line-height: 1.3; color: var(--fg); }
+.caption  { font-family: var(--font-ui); font-size: var(--fz-caption); line-height: 1.4; color: var(--fg-muted); }
+.micro    { font-family: var(--font-ui); font-size: var(--fz-micro);  line-height: 1.3; color: var(--fg-muted); letter-spacing: 0.02em; text-transform: none; }
+.eyebrow  { font-family: var(--font-ui); font-size: 13px; font-weight: 500; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+code, .code { font-family: var(--font-mono); font-size: 14px; color: var(--fg); }
