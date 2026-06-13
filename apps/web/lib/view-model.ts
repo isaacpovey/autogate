@@ -199,3 +199,13 @@ export const LAYER_LABEL: Record<CheckLayer, string> = {
   monitor: "Monitoring",
 };
 export const LAYER_ORDER: CheckLayer[] = ["gate", "ai", "monitor"];
+
+/* ---------- safe lookups (noUncheckedIndexedAccess) ---------- */
+const PENDING_VERDICT = { c: "var(--fg-faint)", edge: "var(--line-2)", tint: "transparent", label: "pending" };
+export function verdictStyle(v: string) {
+  return VERDICT[v] ?? PENDING_VERDICT;
+}
+const RUNNING_DECISION = { label: "running", c: "var(--info)", tint: "var(--info-tint)" };
+export function decisionStyle(key: string) {
+  return DECISION_STYLE[key] ?? RUNNING_DECISION;
+}
