@@ -6,6 +6,6 @@
     "lib": ["ES2022"],
     "noEmit": true
   },
-  "include": ["src"],
+  "include": ["src", "smoke.ts"],
   "exclude": ["node_modules"]
 }
