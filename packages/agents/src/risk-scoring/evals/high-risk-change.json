@@ -1,0 +1,50 @@
+{
+  "name": "high-risk-change",
+  "description": "Billing payment-method update — high sensitivity, non-trivial scope and complexity. riskContribution 72 => band 'high'.",
+  "pr": {
+    "number": 202,
+    "title": "Migrate payment-method storage to Stripe SetupIntent flow",
+    "repo": "askable/autogate",
+    "author": "morgan",
+    "url": "https://github.com/askable/autogate/pull/202",
+    "branch": "feature/stripe-setup-intent",
+    "baseRef": "main",
+    "headRef": "feature/stripe-setup-intent",
+    "headSha": "9f1a2b3",
+    "description": "Replaces the legacy card-token save flow with Stripe's SetupIntent API so we can store payment methods for future off-session charges. Updates the billing service, the webhook handler that confirms the SetupIntent, and the customer settings page."
+  },
+  "files": {
+    "packages/billing/src/payment-methods.ts": "import Stripe from 'stripe';\nimport { db } from '../db/index.js';\n\nconst stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);\n\nexport async function createSetupIntent(customerId: string): Promise<string> {\n  const intent = await stripe.setupIntents.create({\n    customer: customerId,\n    usage: 'off_session',\n  });\n  return intent.client_secret!;\n}\n\nexport async function confirmSetupIntent(intentId: string): Promise<void> {\n  const intent = await stripe.setupIntents.retrieve(intentId);\n  if (intent.status !== 'succeeded') {\n    throw new Error(`SetupIntent ${intentId} did not succeed: ${intent.status}`);\n  }\n  await db.paymentMethods.upsert({\n    customerId: intent.customer as string,\n    stripePaymentMethodId: intent.payment_method as string,\n    isDefault: true,\n  });\n}\n",
+    "packages/billing/src/webhooks.ts": "import type { Request, Response } from 'express';\nimport Stripe from 'stripe';\nimport { confirmSetupIntent } from './payment-methods.js';\n\nconst stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);\nconst webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;\n\nexport async function handleWebhook(req: Request, res: Response): Promise<void> {\n  let event: Stripe.Event;\n  try {\n    event = stripe.webhooks.constructEvent(\n      req.body,\n      req.headers['stripe-signature'] as string,\n      webhookSecret,\n    );\n  } catch (err) {\n    res.status(400).send(`Webhook signature verification failed: ${err}`);\n    return;\n  }\n  if (event.type === 'setup_intent.succeeded') {\n    const intent = event.data.object as Stripe.SetupIntent;\n    await confirmSetupIntent(intent.id);\n  }\n  res.json({ received: true });\n}\n"
+  },
+  "agentResponse": {
+    "status": "warn",
+    "confidence": 0.88,
+    "summary": "This change touches the billing payment-method flow directly, including Stripe SetupIntent creation, webhook signature verification, and database upsert of the default payment method. Sensitivity is very high (payment data, off-session charges). Scope spans multiple packages and complexity includes async error paths and Stripe API state transitions. riskContribution is 72.",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "Payment-method upsert runs inside webhook handler without idempotency guard",
+        "detail": "confirmSetupIntent() calls db.paymentMethods.upsert() on every webhook delivery. Stripe may deliver the same event more than once; without an idempotency key or deduplication check this can overwrite a newer default payment method.",
+        "file": "packages/billing/src/payment-methods.ts",
+        "line": 18
+      },
+      {
+        "severity": "medium",
+        "title": "STRIPE_SECRET_KEY read directly from process.env without validation",
+        "detail": "Both payment-methods.ts and webhooks.ts construct a Stripe client with a non-null assertion on process.env.STRIPE_SECRET_KEY. A missing env var will throw a runtime error rather than a clear startup failure.",
+        "file": "packages/billing/src/webhooks.ts",
+        "line": 5
+      }
+    ],
+    "scope": 60,
+    "complexity": 65,
+    "sensitivity": 90,
+    "riskContribution": 72
+  },
+  "expect": {
+    "status": "warn",
+    "riskBand": "high",
+    "minFindings": 1
+  }
+}

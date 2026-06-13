@@ -1,0 +1,49 @@
+{
+  "name": "pattern-violations",
+  "description": "Handler that queries the DB directly (bypassing the service layer) and uses a default export — two house-pattern violations.",
+  "pr": {
+    "number": 217,
+    "title": "Add orders endpoint",
+    "repo": "askable/autogate",
+    "author": "dan",
+    "url": "https://github.com/askable/autogate/pull/217",
+    "branch": "feature/orders-endpoint",
+    "baseRef": "main",
+    "headRef": "feature/orders-endpoint",
+    "headSha": "9f1a2b3",
+    "description": "Adds a GET /orders handler that returns the current user's orders."
+  },
+  "files": {
+    "src/api/orders.ts": "import { Pool } from 'pg';\n\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\n\nconst ordersHandler = async (req: Request, res: Response) => {\n  const result = await pool.query(\n    'SELECT * FROM orders WHERE user_id = $1',\n    [req.user.id],\n  );\n  res.json(result.rows);\n};\n\nexport default ordersHandler;\n"
+  },
+  "agentResponse": {
+    "status": "warn",
+    "confidence": 0.91,
+    "summary": "Two house-pattern violations found: the handler instantiates its own pg.Pool instead of using the shared getDbClient() helper, and it uses a default export where named exports are required.",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "Bypasses the repository pattern, queries DB directly from handler",
+        "detail": "ordersHandler instantiates a raw pg.Pool inline and queries the database directly. All DB access must go through the shared getDbClient() helper; raw Pool construction is reserved for the db/client module only.",
+        "file": "src/api/orders.ts",
+        "line": 3
+      },
+      {
+        "severity": "medium",
+        "title": "Uses default export instead of the required named export",
+        "detail": "The handler is exported as `export default ordersHandler`. The house convention requires named exports for all modules to support tree-shaking and consistent import style across the codebase.",
+        "file": "src/api/orders.ts"
+      }
+    ],
+    "checkedPatterns": 12,
+    "violatedPatterns": [
+      "Always use shared getDbClient() for database access",
+      "Use named exports only — no default exports"
+    ]
+  },
+  "expect": {
+    "status": "warn",
+    "riskBand": "medium",
+    "minFindings": 2
+  }
+}

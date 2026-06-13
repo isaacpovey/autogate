@@ -1,0 +1,33 @@
+{
+  "name": "clean-no-violations",
+  "description": "A refactor that moves logic within the same layer — no boundary crossings, no new coupling.",
+  "pr": {
+    "number": 201,
+    "title": "Extract useSessionState hook from SessionPanel",
+    "repo": "askable/autogate",
+    "author": "maya",
+    "url": "https://github.com/askable/autogate/pull/201",
+    "branch": "extract-session-hook",
+    "baseRef": "main",
+    "headRef": "extract-session-hook",
+    "headSha": "3c7e1f2",
+    "description": "Extract the local session state logic from SessionPanel into a dedicated useSessionState hook. Pure UI-layer refactor, no new dependencies."
+  },
+  "files": {
+    "src/components/SessionPanel.tsx": "import { useSessionState } from './useSessionState.js';\nexport const SessionPanel = () => {\n  const { session, setSession } = useSessionState();\n  return <div>{session?.name}</div>;\n};",
+    "src/components/useSessionState.ts": "import { useState } from 'react';\nexport const useSessionState = () => {\n  const [session, setSession] = useState<{ name: string } | null>(null);\n  return { session, setSession };\n};"
+  },
+  "agentResponse": {
+    "status": "pass",
+    "confidence": 0.97,
+    "summary": "The refactor stays entirely within the UI component layer. No layer boundaries are crossed and no new inter-module coupling is introduced.",
+    "findings": [],
+    "boundaryViolations": [],
+    "couplingConcerns": []
+  },
+  "expect": {
+    "status": "pass",
+    "riskBand": "low",
+    "maxFindings": 0
+  }
+}

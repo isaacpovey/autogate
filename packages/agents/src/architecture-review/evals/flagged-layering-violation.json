@@ -1,0 +1,51 @@
+{
+  "name": "layering-violation",
+  "description": "Dashboard UI component imports the database layer directly, and a feature module reaches into another feature's internals.",
+  "pr": {
+    "number": 202,
+    "title": "Show live query count on Dashboard",
+    "repo": "askable/autogate",
+    "author": "sam",
+    "url": "https://github.com/askable/autogate/pull/202",
+    "branch": "dashboard-query-count",
+    "baseRef": "main",
+    "headRef": "dashboard-query-count",
+    "headSha": "9d4b8a1",
+    "description": "Display the number of active queries directly on the Dashboard. Pulls the count from the database and wires it into the analytics feature for display."
+  },
+  "files": {
+    "src/components/Dashboard.tsx": "import { getActiveQueryCount } from '../db/queries.js';\nimport { AnalyticsBar } from '../features/analytics/internal/AnalyticsBar.js';\nimport { useEffect, useState } from 'react';\nexport const Dashboard = () => {\n  const [count, setCount] = useState(0);\n  useEffect(() => {\n    getActiveQueryCount().then(setCount);\n  }, []);\n  return (\n    <div>\n      <AnalyticsBar value={count} />\n    </div>\n  );\n};",
+    "src/features/a/index.ts": "export { AnalyticsBar } from '../analytics/internal/AnalyticsBar.js';"
+  },
+  "agentResponse": {
+    "status": "warn",
+    "confidence": 0.91,
+    "summary": "The Dashboard component imports the database layer directly, bypassing the service layer, and also reaches into the analytics feature's internal implementation rather than its public API.",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "UI component imports the database layer directly",
+        "detail": "Dashboard.tsx imports getActiveQueryCount from src/db/queries.js. UI components should call service or hook abstractions, not the database layer directly.",
+        "file": "src/components/Dashboard.tsx",
+        "line": 1
+      },
+      {
+        "severity": "medium",
+        "title": "Tight coupling: feature module reaches into another feature internals",
+        "detail": "src/features/a/index.ts re-exports from analytics/internal/AnalyticsBar.js. Cross-feature imports should go through the target feature's public index, not its internal paths.",
+        "file": "src/features/a/index.ts"
+      }
+    ],
+    "boundaryViolations": [
+      "UI component imports DB layer directly (Dashboard.tsx → src/db/queries.js)"
+    ],
+    "couplingConcerns": [
+      "Feature A reaches into analytics feature internals (features/a → analytics/internal/AnalyticsBar)"
+    ]
+  },
+  "expect": {
+    "status": "warn",
+    "riskBand": "medium",
+    "minFindings": 2
+  }
+}

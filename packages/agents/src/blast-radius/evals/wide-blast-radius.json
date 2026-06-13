@@ -1,0 +1,53 @@
+{
+  "name": "wide-blast-radius",
+  "description": "A change to a shared auth client imported by multiple services — moderate blast radius, warrants review.",
+  "pr": {
+    "number": 202,
+    "title": "Refactor token refresh logic in shared auth client",
+    "repo": "askable/autogate",
+    "author": "marcus",
+    "url": "https://github.com/askable/autogate/pull/202",
+    "branch": "auth-token-refresh",
+    "baseRef": "main",
+    "headRef": "auth-token-refresh",
+    "headSha": "f7a1b2c",
+    "description": "Refactors the token refresh flow in the shared auth client to use sliding window expiry instead of fixed TTL. Should be transparent to callers."
+  },
+  "files": {
+    "src/lib/authClient.ts": "export const refreshToken = async (token: string): Promise<string> => {\n  // sliding window: extend by 15 min on every authenticated call\n  const expiry = Date.now() + 15 * 60 * 1000;\n  return issueToken({ token, expiry });\n};\n",
+    "packages/api/src/middleware/auth.ts": "import { refreshToken } from '../../lib/authClient.js';\nexport const authMiddleware = async (ctx: Context) => {\n  ctx.token = await refreshToken(ctx.token);\n};\n",
+    "packages/worker/src/jobs/syncJob.ts": "import { refreshToken } from '../../lib/authClient.js';\nexport const runSync = async (jobToken: string) => {\n  const fresh = await refreshToken(jobToken);\n  await doSync(fresh);\n};\n"
+  },
+  "agentResponse": {
+    "status": "warn",
+    "confidence": 0.88,
+    "summary": "The changed auth client is imported by at least three downstream services (api, worker, dashboard). A behavioural shift in token expiry will affect every authenticated call across those boundaries.",
+    "findings": [
+      {
+        "severity": "high",
+        "title": "Touches shared auth client used by many services",
+        "detail": "authClient.ts is a cross-cutting dependency. Changing token refresh semantics from fixed TTL to sliding window affects every service that calls refreshToken(), including critical auth middleware in packages/api.",
+        "file": "src/lib/authClient.ts",
+        "line": 2
+      },
+      {
+        "severity": "medium",
+        "title": "Three downstream services import this path",
+        "detail": "packages/api, packages/worker, and apps/dashboard all import refreshToken() from authClient.ts. Any unexpected side-effect in the new sliding-window logic propagates to all of them simultaneously.",
+        "file": "src/lib/authClient.ts"
+      }
+    ],
+    "affectedPaths": [
+      "src/lib/authClient.ts",
+      "packages/api/src/middleware/auth.ts",
+      "packages/worker/src/jobs/syncJob.ts"
+    ],
+    "downstreamSystems": ["packages/api", "packages/worker", "apps/dashboard"],
+    "fanout": 7
+  },
+  "expect": {
+    "status": "warn",
+    "riskBand": "medium",
+    "minFindings": 2
+  }
+}
