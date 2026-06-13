@@ -7,6 +7,12 @@ RUN corepack enable
 
 WORKDIR /app
 
+# `NEXT_PUBLIC_*` vars are inlined into the client bundle at build time, so the
+# public API URL must be present during `next build` — runtime env is too late
+# for browser code.
+ARG NEXT_PUBLIC_API_URL=http://localhost:3002
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 COPY . .
 
 RUN pnpm install --frozen-lockfile

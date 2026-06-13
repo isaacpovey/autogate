@@ -1,0 +1,31 @@
+# Single HTTPS endpoint for the whole autogate stack.
+#
+# Caddy terminates TLS for {$SITE_ADDRESS} and fans out:
+#   /api/*  -> api:4000   (the `/api` prefix is stripped before proxying, so the
+#                          tRPC standalone server sees procedure paths at root)
+#   /*      -> web:3000   (the Next.js app)
+#
+# TLS strategy is controlled by {$TLS_DIRECTIVE}:
+#   pre-DNS : "tls internal"  -> Caddy's local CA issues a self-signed cert so
+#                                the endpoint is immediately testable.
+#   live    : ""              -> Caddy auto-provisions a real Let's Encrypt cert
+#                                once {$SITE_ADDRESS} resolves to this host.
+
+{
+	# ACME contact; harmless when TLS_DIRECTIVE is "tls internal".
+	email {$ACME_EMAIL:admin@tyrongarratt.com}
+}
+
+{$SITE_ADDRESS} {
+	{$TLS_DIRECTIVE}
+
+	encode zstd gzip
+
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
