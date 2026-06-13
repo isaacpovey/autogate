@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { repoConfigSchema, type PullRequest, type StoredRun } from '@autogate/contracts';
-import { createQueue, createStore, runMigrations } from '@autogate/store-postgres';
+import { createQueue, createRunResults, createStore, runMigrations } from '@autogate/store-postgres';
 import { createMemoryClient, ingestRepo } from '@autogate/memory-qdrant';
 import { resolveEmbedder } from './embedder.js';
 import { seedStore } from './seed.js';
@@ -39,11 +39,13 @@ export const dbMigrate = async ({ json }: { json: boolean }): Promise<void> => {
 
 /** `db seed` — write the demo dataset through the Store port. Assumes migrations have run. */
 export const dbSeed = async ({ json }: { json: boolean }): Promise<void> => {
-  const store = createStore({ connectionString: databaseUrl() });
-  const counts = await seedStore({ store });
+  const connectionString = databaseUrl();
+  const store = createStore({ connectionString });
+  const runResults = createRunResults({ connectionString });
+  const counts = await seedStore({ store, runResults });
   emit({
     json,
-    line: `db seed: ok (${counts.runs} runs, ${counts.verdicts} verdicts, ${counts.escalations} escalation)`,
+    line: `db seed: ok (${counts.runs} runs, ${counts.verdicts} verdicts, ${counts.escalations} escalation, ${counts.results} results)`,
     data: { command: 'db seed', ok: true, ...counts },
   });
 };

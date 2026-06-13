@@ -11,7 +11,7 @@ import {
   type VcsProvider,
   type Verdict,
 } from "@autogate/contracts";
-import { createQueue, createStore, runMigrations } from "@autogate/store-postgres";
+import { createQueue, createRunResults, createStore, runMigrations } from "@autogate/store-postgres";
 import { runPipeline, type OrchestratorPorts } from "./orchestrator/index";
 
 /**
@@ -107,6 +107,7 @@ const main = async (): Promise<void> => {
 
   const store = createStore({ connectionString });
   const queue = createQueue<JobPayload>({ connectionString });
+  const runResults = createRunResults({ connectionString });
 
   const ports: OrchestratorPorts = {
     vcs: greenVcs(),
@@ -117,6 +118,7 @@ const main = async (): Promise<void> => {
     policy,
     resolveRepoConfig: () => repoConfig,
     now: () => new Date().toISOString(),
+    runResults,
   };
 
   const runJob = processJob({ ports, queue });

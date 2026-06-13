@@ -5,6 +5,8 @@ import type {
   CheckLayer,
   Finding,
   OverrideAction,
+  RunDecision,
+  RunDetail,
 } from '@autogate/contracts';
 import {
   doublePrecision,
@@ -55,6 +57,24 @@ export const overrides = pgTable('overrides', {
   runId: text('run_id').notNull(),
   action: text('action').$type<OverrideAction>().notNull(),
   reason: text('reason').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Per-run result snapshot. `runPipeline` computes the decision, gate check runs,
+ * and timeline but only persists verdicts/escalations through the `Store` port;
+ * this table captures the rest so the dashboard provider can reconstruct a full
+ * `RunDetail` from storage alone. Not part of the `Store` contract — read/written
+ * via the standalone `createRunResults` accessor.
+ */
+export const runResults = pgTable('run_results', {
+  runId: text('run_id').primaryKey(),
+  decision: jsonb('decision')
+    .$type<{ outcome: RunDecision; riskScore: number; reasons: string[] }>()
+    .notNull(),
+  gateChecks: jsonb('gate_checks').$type<RunDetail['gateChecks']>().notNull(),
+  timeline: jsonb('timeline').$type<RunDetail['timeline']>().notNull(),
+  riskScore: doublePrecision('risk_score').notNull(),
   createdAt: text('created_at').notNull(),
 });
 

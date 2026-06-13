@@ -163,4 +163,31 @@ export const createStore = ({
   };
 };
 
+/**
+ * Read-side queries the dashboard needs that the `Store` port doesn't expose
+ * (e.g. all overrides for the per-week trust metric). Kept off the `Store`
+ * contract so `@autogate/contracts` stays unchanged; one connection, created once.
+ */
+export const createMetricsQueries = ({
+  connectionString,
+}: {
+  connectionString: string;
+}): { listOverrides: () => Promise<StoredOverride[]> } => {
+  const sql = postgres(connectionString);
+  const db = drizzle(sql);
+  return {
+    listOverrides: async () => {
+      const rows = await db.select().from(overrides).orderBy(asc(overrides.createdAt));
+      return rows.map(
+        (row): StoredOverride => ({
+          runId: row.runId,
+          action: row.action,
+          reason: row.reason,
+          createdAt: row.createdAt,
+        }),
+      );
+    },
+  };
+};
+
 export type { StoredRun, StoredVerdict, StoredEscalation, StoredOverride };

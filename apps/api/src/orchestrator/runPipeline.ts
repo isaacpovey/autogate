@@ -16,6 +16,25 @@ import { decide, type Decision } from "./decide.js";
 import { buildBrief } from "./buildBrief.js";
 
 /**
+ * The derived view `runPipeline` computes but the `Store` port doesn't hold:
+ * decision, gate check runs, and timeline. Persisting it lets the dashboard
+ * reconstruct a full `RunDetail` from storage. Optional — the eval tier runs the
+ * pipeline without it, and the loop still imports no concrete adapter (the port
+ * is structural, satisfied by `@autogate/store-postgres`'s `createRunResults`).
+ */
+export type RunResultSnapshot = {
+  runId: string;
+  decision: Decision;
+  gateChecks: RunDetail["gateChecks"];
+  timeline: RunDetail["timeline"];
+  riskScore: number;
+};
+
+export type RunResultSink = {
+  save: (args: { result: RunResultSnapshot }) => Promise<void>;
+};
+
+/**
  * Everything the pipeline touches the outside world through. All I/O is here as
  * injected ports — the loop itself imports no concrete adapter.
  */
@@ -28,6 +47,7 @@ export type OrchestratorPorts = {
   policy: Policy;
   resolveRepoConfig: (args: { repo: string }) => RepoConfig;
   now: () => string;
+  runResults?: RunResultSink;
 };
 
 const toCheckSummary = ({ verdicts }: { verdicts: Verdict[] }) =>
@@ -114,7 +134,8 @@ const blockedDetail = ({
 export const runPipeline =
   ({ ports }: { ports: OrchestratorPorts }) =>
   async (runId: string): Promise<RunDetail> => {
-    const { vcs, sandbox, store, memory, registry, policy, resolveRepoConfig, now } = ports;
+    const { vcs, sandbox, store, memory, registry, policy, resolveRepoConfig, now, runResults } =
+      ports;
 
     const existing = await store.runs.get({ runId });
     if (existing === undefined) {
@@ -140,7 +161,7 @@ export const runPipeline =
         state: "pending",
         description: decision.reasons.join(" "),
       });
-      return blockedDetail({
+      const detail = blockedDetail({
         run: blockedRun,
         decision,
         gate,
@@ -149,6 +170,18 @@ export const runPipeline =
           { at: blockedRun.updatedAt, event: "Layer 1 gate not green; awaiting checks." },
         ],
       });
+      if (runResults !== undefined) {
+        await runResults.save({
+          result: {
+            runId,
+            decision,
+            gateChecks: detail.gateChecks,
+            timeline: detail.timeline,
+            riskScore: decision.riskScore,
+          },
+        });
+      }
+      return detail;
     }
 
     const runningRun: StoredRun = { ...existing, status: "running", updatedAt: now() };
@@ -212,7 +245,7 @@ export const runPipeline =
 
     const storedVerdicts = await store.verdicts.listForRun({ runId });
 
-    return {
+    const detail: RunDetail = {
       runId,
       pr: summaryPr({ run: completedRun }),
       status: completedRun.status,
@@ -248,4 +281,17 @@ export const runPipeline =
         { at: completedAt, event: `Decision: ${decision.outcome}.` },
       ],
     };
+
+    if (runResults !== undefined) {
+      await runResults.save({
+        result: {
+          runId,
+          decision,
+          gateChecks: detail.gateChecks,
+          timeline: detail.timeline,
+          riskScore: decision.riskScore,
+        },
+      });
+    }
+    return detail;
   };

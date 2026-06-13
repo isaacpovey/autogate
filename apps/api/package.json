@@ -18,6 +18,7 @@
   "dependencies": {
     "@autogate/api": "workspace:*",
     "@autogate/contracts": "workspace:*",
+    "@autogate/infra": "workspace:*",
     "@autogate/sandbox": "workspace:*",
     "@autogate/store-postgres": "workspace:*",
     "@trpc/server": "^11.17.0",

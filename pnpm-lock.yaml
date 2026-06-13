@@ -35,6 +35,9 @@ importers:
       '@autogate/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@autogate/infra':
+        specifier: workspace:*
+        version: link:../../infra
       '@autogate/sandbox':
         specifier: workspace:*
         version: link:../../packages/sandbox

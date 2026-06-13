@@ -43,6 +43,14 @@ const statements = [
     claimed_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now()
   )`,
+  sql`CREATE TABLE IF NOT EXISTS run_results (
+    run_id text PRIMARY KEY,
+    decision jsonb NOT NULL,
+    gate_checks jsonb NOT NULL,
+    timeline jsonb NOT NULL,
+    risk_score double precision NOT NULL,
+    created_at text NOT NULL
+  )`,
 ];
 
 export const runMigrations = async ({
