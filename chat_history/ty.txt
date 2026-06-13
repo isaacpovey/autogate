@@ -1,0 +1,3661 @@
+╭─── Claude Code v2.1.177 ─────────────────────────────────────────────────────╮
+│                                      │ Tips for getting started              │
+│           Welcome back Ty!           │ Run /init to create a CLAUDE.md file… │
+│                                      │ ───────────────────────────────────── │
+│                ▐▛███▜▌               │ What's new                            │
+│               ▝▜█████▛▘              │ Session titles are now generated in … │
+│                 ▘▘ ▝▝                │ Added `footerLinksRegexes` setting f… │
+│                                      │ Improved Bedrock credential caching:… │
+│   Opus 4.8 · Claude Team · Askable   │ /release-notes for more               │
+│        ~/Developer/auto-gate         │                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ We want to bring in TRPC to this repo to have strong contracts between our    
+  API. Lets get this done                                                       
+
+⏺ I'll start by understanding what we're working with and exploring the right
+  approach. Since this is feature work, let me load the brainstorming skill
+  first.
+
+⏺ Skill(superpowers:brainstorming)
+  ⎿  Successfully loaded skill
+
+⏺ I'll explore the project context first. Let me look at the structure and the
+  design spec that already exists.
+
+  Read 1 file, listed 1 directory (ctrl+o to expand)
+
+⏺ This is a fresh turborepo scaffold with a detailed design spec and tickets.
+  The 00-contracts.md ticket is highly relevant. Let me read the design and
+  contracts.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Now let me read the design spec sections on the API surface (§4-6), and the
+  orchestrator + dashboard tickets, since those define the API boundary tRPC
+  would cover.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ I've now got the full picture. This is Autogate — a fresh create-turbo
+  scaffold (only apps/web dashboard + apps/docs + shared config packages exist
+  so far) with a detailed design and tickets, but no application code yet.
+
+  One important thing jumps out, and it shapes everything: the design spec 
+  deliberately specifies the API boundary as REST. §6 defines a DashboardApi as
+  a typed HTTP contract (GET /api/runs, POST /api/runs/:id/override, SSE
+  streams, etc.), served by Hono, consumed by the Next.js dashboard, with Zod
+  schemas living in a packages/contracts. Bringing in tRPC is a real change to
+  that decision — and it only makes sense at one boundary in this repo: the
+  orchestrator/API ↔ dashboard seam (the other "contracts" are in-process
+  TypeScript port interfaces, where tRPC doesn't apply).
+
+  Also worth noting: the orchestrator/API app and the contracts package don't 
+  exist yet — so "bring in tRPC" partly means scaffolding that foundation.
+
+  Before I design anything, two decisions will reshape the whole approach:
+
+⏺ User answered Claude's questions:
+  ⎿  · tRPC only fits one seam here: the orchestrator/API ↔ Next.js dashboard 
+     boundary (the spec's REST `DashboardApi` in §6). Should tRPC replace that 
+     REST surface as the typed contract? → Yeah we want to scaffold out the 
+     foundation for now. We want to dump the hono stuff and move to trpc instead
+     · Nothing is built yet (no API app, no contracts package). How much should 
+     this task deliver? → Foundation scaffold
+
+⏺ Got it — dump Hono, tRPC becomes the typed contract for the orchestrator ↔ 
+  dashboard seam, foundation scaffold only. Since no Hono code exists yet (it
+  lives in the spec/tickets as the chosen approach), "dumping it" means
+  scaffolding the tRPC foundation and updating the design docs to match.
+
+  Here's the design. I'll go through it in sections — tell me if each looks
+  right.
+
+  1. Package & app layout
+
+  Three pieces, following the spec's "contracts is the single shared dependency"
+  principle:
+
+  Where: packages/contracts
+  Role: Zod schemas + inferred TS types (Verdict, Finding, RunSummary, …). Pure
+    data contracts. No tRPC, no runtime. (ticket 00)
+  Depends on: —
+  ────────────────────────────────────────
+  Where: packages/api
+  Role: The tRPC layer: initTRPC setup, Context type, router/publicProcedure,
+  the
+    appRouter with procedures, and export type AppRouter. The shared API
+  contract
+     both ends import.
+  Depends on: contracts
+  ────────────────────────────────────────
+  Where: apps/api
+  Role: Orchestrator/API app. Wires in-memory mock deps into a context and
+  serves
+     appRouter over HTTP via tRPC's standalone adapter (pure Node, no framework
+  —
+     this is what replaces Hono). Port 3002.
+  Depends on: packages/api
+  ────────────────────────────────────────
+  Where: apps/web
+  Role: Dashboard. Adds a typed tRPC client bound to AppRouter + one page making
+
+    a real typed call.
+  Depends on: packages/api (type-only), contracts
+
+  The key win: apps/web imports type AppRouter from packages/api and gets
+  end-to-end type inference — rename a field in a procedure and the dashboard
+  fails to compile.
+
+  Why a separate packages/api rather than putting the router in apps/api or in 
+  contracts: the dashboard should depend on a package, not another app (clean
+  app→package graph), and the router (schema + resolver) is runtime code that
+  doesn't belong in the pure-data contracts package. This matches the
+  create-t3-turbo layout.
+
+  Does this layout look right?
+
+  2. The scaffold's example procedures
+
+  Two procedures, enough to prove the wiring and set conventions without porting
+  the full §6 surface:
+
+  - health — query, no input → { status: 'ok', time: string }. Proves the
+  transport works.
+  - runs.list — query, Zod input { repo?, status?, limit? } → RunSummary[]
+  pulled from an in-memory mock in the context. Proves Zod-validated I/O +
+  shared contracts types flowing server→client, and seeds the real DashboardApi
+  shape (runs router).
+
+  Resolvers read their dependencies off ctx (functional (deps) => (args) style
+  from the spec) — createContext injects the in-mem mock store, so swapping in
+  the real Postgres adapter later needs no procedure changes.
+
+  3. Transport & runtime
+
+  - Server adapter: @trpc/server/adapters/standalone (createHTTPServer) —
+  zero-framework Node HTTP server, with CORS allowing the dashboard origin. This
+  is the direct Hono replacement.
+  - Client: @trpc/client + @trpc/react-query + @tanstack/react-query v5,
+  httpBatchLink → http://localhost:3002. A 'use client' provider in the Next 16
+  App Router, and one server-rendered-then-hydrated page calling health +
+  runs.list.
+  - tRPC v11 throughout (React 19 / Next 16 compatible).
+  - SSE streams (spec §6 /api/stream): map cleanly to tRPC v11 SSE subscriptions
+  — I'll note this in the docs but not implement it in the foundation.
+
+  4. Doc changes (the "dump Hono" part)
+
+  - docs/.../2026-06-13-autogate-design.md: §4 DashboardApi adapter Hono routes
+  → tRPC router; §6 reframed from REST routes to a tRPC router contract (same
+  payload types, kept); §8 stack Node + Hono → Node + tRPC (standalone adapter).
+  - Tickets 00-contracts, 01-orchestrator, 11-dashboard: updated to reference
+  the tRPC router / AppRouter / typed client instead of REST + mock server.
+
+  5. Verification
+
+  Per the repo's posture (verify, don't over-test): pnpm turbo check-types
+  passes across all packages, and I exercise the artifact — boot apps/api, hit
+  health/runs.list, and load the apps/web page showing a typed call rendering
+  mock data with no any/as.
+
+  ---
+  Out of scope (deferred to ticket work): full §6 surface (override, rollback,
+  metrics, repos), SSE subscriptions, real adapters, auth.
+
+  If this all looks right, I'll write it up as a design doc, commit it, and have
+  you review before we move to the implementation plan. Anything you'd change?
+
+✻ Cooked for 2m 51s
+
+❯ Yeah this makes sense. OUt of scope is the packages/contracts because another 
+  engineer is implementing that. Lets scaffold this out, and also have the      
+  frontend scaffolded out with best practises - likely tanstack query           
+
+⏺ Approved with two changes noted:
+  - packages/contracts is out — another engineer owns it. So packages/api will
+  define its scaffold types/Zod schemas inline (clearly marked to later import
+  from @autogate/contracts), with no dependency on it.
+  - Frontend gets proper TanStack Query — I'll use tRPC v11's modern
+  @trpc/tanstack-react-query integration (typed queryOptions + native useQuery),
+  which is the current recommended best practice.
+
+  You said "let's scaffold this out," so I'll proceed to implementation. Let me
+  first look at the existing apps/web and @repo/ui conventions so the new code
+  matches.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== apps/web full tree ===" && find apps/web -not -path
+      '*/node_modules/*' -type f | sort…)
+  ⎿  === apps/web full tree ===
+     apps/web/app/favicon.ico
+     apps/web/app/fonts/GeistMonoVF.woff
+     … +98 lines (ctrl+o to expand)
+
+⏺ Let me see the existing page/layout and how @repo/ui is consumed, plus the ui
+  package's exports and a sample component.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== app/layout.tsx ===" && cat apps/web/app/layout.tsx…)
+  ⎿  === app/layout.tsx ===
+     import type { Metadata } from "next";
+     import localFont from "next/font/local";
+     … +225 lines (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Is trpc v11 the latest tanstack version?                                      
+
+⏺ Good question — let me verify rather than guess from memory.
+
+⏺ Bash(echo "=== @trpc/server ===" && npm view @trpc/server version 2>/dev/null
+      echo "=== @trpc/server dist-tags ===" && npm view @trpc/server dist-tags
+      --json 2>/dev/…)
+  ⎿  === @trpc/server ===
+     11.17.0
+     === @trpc/server dist-tags ===
+     … +34 lines (ctrl+o to expand)
+
+⏺ Verified. Quick clarification of the two separate things:
+
+  - tRPC — latest stable is v11 (11.17.0). There's no v12; v11 is the current
+  major. ✅
+  - The TanStack Query integration — the package @trpc/tanstack-react-query is
+  now at 11.17.0 stable, versioned in lockstep with tRPC v11. It graduated out
+  of alpha (the old 0.0.0-alpha.5 is stale on a separate tag). This is the
+  modern, recommended integration. ✅
+  - TanStack Query itself — @tanstack/react-query latest is v5 (5.101.0), which
+  is what that integration pairs with. ✅
+
+  So the plan is on current stable across the board:
+
+  ┌────────────────────────────┬──────────┐
+  │          Package           │ Version  │
+  ├────────────────────────────┼──────────┤
+  │ @trpc/server               │ ^11.17.0 │
+  ├────────────────────────────┼──────────┤
+  │ @trpc/client               │ ^11.17.0 │
+  ├────────────────────────────┼──────────┤
+  │ @trpc/tanstack-react-query │ ^11.17.0 │
+  ├────────────────────────────┼──────────┤
+  │ @tanstack/react-query      │ ^5.101.0 │
+  └────────────────────────────┴──────────┘
+
+  One note: @trpc/tanstack-react-query (the modern queryOptions proxy approach)
+  is the right "best practices" pick you asked for — but it's worth knowing the
+  older @trpc/react-query (the trpc.x.useQuery() classic hooks) is also still at
+  v11 and fully supported. I'm going with the modern @trpc/tanstack-react-query
+  integration unless you'd prefer the classic hooks.
+
+  Want me to proceed scaffolding with these versions?
+✻ Sautéed for 20s
+
+❯ use all modern stuff no legacy things                                         
+
+⏺ All modern, no legacy — got it. That means the new @trpc/tanstack-react-query
+  queryOptions proxy, the RSC prefetch + hydration pattern, tRPC's standalone
+  fetch-style adapter, Zod-validated I/O, and no classic useQuery hooks
+  anywhere.
+
+  Let me check a couple of remaining facts (eslint-config exports for node
+  packages, latest Zod), then build it all.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== eslint-config package.json ===" && cat
+      packages/eslint-config/package.json…)
+  ⎿  === eslint-config package.json ===
+     {
+       "name": "@repo/eslint-config",
+     … +69 lines (ctrl+o to expand)
+
+⏺ Zod v4 (4.4.3) is latest and tRPC v11 supports it — using that. eslint-config
+  exports ./base (named config). I have everything. Let me track the work and
+  build.
+
+⏺ Now let me build packages/api. Marking task 1 in progress.
+
+⏺ Now creating packages/api:
+
+⏺ Write(packages/api/package.json)
+  ⎿  Wrote 24 lines to packages/api/package.json
+       1 {
+       2   "name": "@autogate/api",
+       3   "version": "0.0.0",
+       4   "private": true,
+       5   "type": "module",
+       6   "exports": {
+       7     ".": "./src/index.ts"
+       8   },
+       9   "scripts": {
+      10     "lint": "eslint . --max-warnings 0",
+     … +14 lines (ctrl+o to expand)
+
+⏺ Write(packages/api/tsconfig.json)
+  ⎿  Wrote 11 lines to packages/api/tsconfig.json
+       1 {
+       2   "extends": "@repo/typescript-config/base.json",
+       3   "compilerOptions": {
+       4     "module": "ESNext",
+       5     "moduleResolution": "Bundler",
+       6     "lib": ["ES2022"],
+       7     "noEmit": true
+       8   },
+       9   "include": ["src"],
+      10   "exclude": ["node_modules"]
+     … +1 line (ctrl+o to expand)
+
+⏺ Write(packages/api/eslint.config.mjs)
+  ⎿  Wrote 4 lines to packages/api/eslint.config.mjs
+      1 import { config } from "@repo/eslint-config/base";
+      2 
+      3 /** @type {import("eslint").Linter.Config[]} */
+      4 export default config;
+
+⏺ Now the tRPC source. First the core initTRPC setup and context:
+
+⏺ Write(packages/api/src/trpc.ts)
+  ⎿  Wrote 18 lines to packages/api/src/trpc.ts
+       2 import type { Context } from "./context";
+       3 
+       4 /**
+       6  * tRPC instance, bound to our request {@link Context}.
+       7  * No data transformer is configured: payloads are plain JSON an
+         d our contract
+         eed to sende string timestamps (see `schemas.ts`). If we later n
+       9  * richer types (Date, Map, bigint) over the wire, add a transfo
+         rmer here and
+      10  * mirror it on the client.
+     … +12 lines (ctrl+o to expand)
+
+⏺ Write(packages/api/src/context.ts)  ⎿  Wrote 22 lines to packages/api/src/context.ts
+       2 import type { StorePort } from "./store";
+       3 /**
+       4  * Per-request context. Holds the injected ports the procedures 
+       5  * never concrete adapters. Swapping the in-memory mock for the 
+         real Postgres
+       6  * `Store` (ticket 03) is a one-line change at the server bounda
+       7  * procedure changes.
+       8  */
+       9 export type Context = {
+      10   store: StorePort;
+     … +18 lines (ctrl+o to expand)
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Expected — deps aren't installed and sibling files don't exist yet.
+  Continuing. Now the scaffold schemas (clearly marked to move to
+  @autogate/contracts):
+
+⏺ Write(packages/api/src/schemas.ts)
+  ⎿  Wrote 62 lines to packages/api/src/schemas.ts
+       2 import { z } from "zod";
+       3 /**
+          payloads in theNLY — these mirror a slice of the `DashboardApi`
+       5  * design spec §6. The real Zod schemas + inferred types live in
+       6  * `@autogate/contracts` (ticket 00, owned by another engineer).
+       7  * package lands, delete this file and import the schemas from t
+         here instead:
+       9  *   import { runSummary, listRunsInput, type RunSummary } from 
+         "@autogate/contracts";
+      10  *
+     … +59 lines (ctrl+o to expand)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now the store port + in-memory mock:
+
+⏺ Write(packages/api/src/store.ts)
+  ⎿  Wrote 81 lines to packages/api/src/store.ts
+       2 import type { ListRunsInput, RunSummary } from "./schemas";
+       3 /**
+         n spec §4).OLD ONLY — a minimal slice of the `Store` port (desig
+       5  * The authoritative port interface ships from `@autogate/contra
+         cts` (ticket 00);
+         s` (ticket 03).tgres + Drizzle adapter ships from `store-postgre
+       7  * Procedures depend on this interface, never on a concrete adap
+       8  * can be swapped in without touching the router.
+       9  */
+      10 export type StorePort = {
+     … +77 lines (ctrl+o to expand)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now the runs router, root router, and index exports:
+
+⏺ Write(packages/api/src/routers/runs.ts)
+  ⎿  Wrote 12 lines to packages/api/src/routers/runs.ts
+       2 import { listRunsInputSchema, type RunSummary } from "../schemas
+         ";
+       3 
+       5  * `runs` sub-router — the read slice of the `DashboardApi` (spe
+         c §6).
+       6  * Scaffold ships `list`; `byId`, `override`, `rollback` land wi
+       7  */ticket 11/01.
+       8 export const runsRouter = router({
+       9   list: publicProcedure
+      10     .input(listRunsInputSchema)
+     … +5 lines (ctrl+o to expand)
+
+⏺ Write(packages/api/src/root.ts)
+  ⎿  Wrote 19 lines to packages/api/src/root.ts
+       2 import { runsRouter } from "./routers/runs";rpc";
+       3 
+       5  * The single typed contract between the orchestrator/API and th
+         e dashboard.
+       6  * The dashboard imports only the `AppRouter` *type* (below) and
+       7  * end-to-end inference; rename a field here and the client fail
+         s to compile.
+       9 export const appRouter = router({
+      10   /** Liveness probe — proves the transport end-to-end with no d
+         ependencies. */
+     … +13 lines (ctrl+o to expand)
+
+⏺ Write(packages/api/src/index.ts)
+  ⎿  Wrote 20 lines to packages/api/src/index.ts
+       2  * `@autogate/api` — the tRPC contract for the orchestrator/API 
+         ↔ dashboard seam.
+       4  * Servers import `appRouter` + `createContext` to serve it (see
+          `apps/api`).
+       5  * Clients import only `type AppRouter` for full end-to-end type
+       6  * (see `apps/web`). Scaffold schemas/store re-exported here wil
+         l be replaced by
+       8  */`@autogate/contracts` (ticket 00) once it lands.
+       9 export { appRouter } from "./root";
+      10 export type { AppRouter } from "./root";
+     … +14 lines (ctrl+o to expand)
+
+⏺ packages/api is complete. Now apps/api — the standalone tRPC server.
+
+⏺ Write(apps/api/package.json)
+  ⎿  Wrote 26 lines to apps/api/package.json
+       1 {
+       2   "name": "api",
+       3   "version": "0.1.0",
+       4   "type": "module",
+       5   "private": true,
+       6   "scripts": {
+       7     "dev": "tsx watch src/index.ts",
+       8     "start": "tsx src/index.ts",
+       9     "lint": "eslint . --max-warnings 0",
+      10     "check-types": "tsc --noEmit"
+     … +16 lines (ctrl+o to expand)
+
+⏺ Write(apps/api/tsconfig.json)
+  ⎿  Wrote 11 lines to apps/api/tsconfig.json
+       1 {
+       2   "extends": "@repo/typescript-config/base.json",
+       3   "compilerOptions": {
+       4     "module": "ESNext",
+       5     "moduleResolution": "Bundler",
+       6     "lib": ["ES2022"],
+       7     "noEmit": true
+       8   },
+       9   "include": ["src"],
+      10   "exclude": ["node_modules"]
+     … +1 line (ctrl+o to expand)
+
+⏺ Write(apps/api/eslint.config.mjs)
+  ⎿  Wrote 4 lines to apps/api/eslint.config.mjs
+      1 import { config } from "@repo/eslint-config/base";
+      2 
+      3 /** @type {import("eslint").Linter.Config[]} */
+      4 export default config;
+
+⏺ Write(apps/api/src/index.ts)
+  ⎿  Wrote 24 lines to apps/api/src/index.ts
+         ne";rt { createHTTPServer } from "@trpc/server/adapters/standalo
+       2 import cors from "cors";
+         pi";rt { appRouter, createContext, mockStore } from "@autogate/a
+       4 
+       6 const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3
+         000";
+       8 /**
+       9  * Orchestrator/API HTTP server. Serves the `@autogate/api` tRPC
+      10  * framework-free Node server (this is what replaced the planned
+          Hono setup).
+     … +21 lines (ctrl+o to expand)
+
+⏺ apps/api done. Now the modern apps/web integration.
+  ⎿  Found 6 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ All expected pre-install errors. Now apps/web. Task 3 in progress.
+⏺ Write(apps/web/package.json)
+  ⎿  Added 6 lines, removed 1 line
+      11      "check-types": "next typegen && tsc --noEmit"
+      12    },
+      13    "dependencies": {
+      14 +    "@autogate/api": "workspace:*",                            
+      15      "@repo/ui": "workspace:*",
+      16 +    "@tanstack/react-query": "^5.101.0",                       
+      17 +    "@trpc/client": "^11.17.0",                                
+      18 +    "@trpc/tanstack-react-query": "^11.17.0",                  
+      19      "next": "16.2.0",
+      20      "react": "^19.2.0",
+      17 -    "react-dom": "^19.2.0"                                     
+      21 +    "react-dom": "^19.2.0",                                    
+      22 +    "server-only": "^0.0.1"                                    
+      23    },
+      24    "devDependencies": {
+      25      "@repo/eslint-config": "workspace:*",
+
+⏺ Write(apps/web/next.config.js)
+  ⎿  Error writing file
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Write(apps/web/next.config.js)
+  ⎿  Added 6 lines, removed 1 line
+      1  /** @type {import('next').NextConfig} */
+      2 -const nextConfig = {};                                          
+      2 +const nextConfig = {                                            
+      3 +  // `@autogate/api` ships TypeScript source (no build step), so
+        + Next must                                                      
+      4 +  // transpile it. We only ever import the `AppRouter` *type* fr
+        +om it, but the                                                  
+      5 +  // module graph still needs to resolve.                       
+      6 +  transpilePackages: ["@autogate/api"],                         
+      7 +};                                                              
+      8  
+      9  export default nextConfig;
+
+⏺ Now the tRPC client wiring. Shared URL helper, query client factory, client
+  provider, and server proxy:
+
+⏺ Write(apps/web/trpc/shared.ts)
+  ⎿  Wrote 4 lines to apps/web/trpc/shared.ts
+      1 /** Base URL of the orchestrator/API tRPC server. */
+      2 export function getApiUrl() {
+      3   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:300
+        2";
+      4 }
+
+⏺ Write(apps/web/trpc/query-client.ts)
+  ⎿  Wrote 27 lines to apps/web/trpc/query-client.ts
+       2   defaultShouldDehydrateQuery,
+       3   QueryClient,
+       4 } from "@tanstack/react-query";
+       6 /**
+       7  * Factory for a TanStack QueryClient. Used in three places with
+          different
+          in the browser,fresh one per request on the server, a singleton
+       9  * and a cached-per-request one for RSC prefetching (see `server
+         .tsx`).
+      10  *
+     … +22 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/trpc/client.tsx)
+  ⎿  Wrote 49 lines to apps/web/trpc/client.tsx
+      1 "use client";
+      2 
+      3 import { useState } from "react";
+      4 import { QueryClientProvider, type QueryClient } from "@tanstack/
+        react-query";
+      5 import { createTRPCClient, httpBatchLink } from "@trpc/client";
+      6 import { createTRPCContext } from "@trpc/tanstack-react-query";
+      7 import type { AppRouter } from "@autogate/api";
+      8 import { makeQueryClient } from "./query-client";
+      9 import { getApiUrl } from "./shared";
+     … +45 lines (ctrl+o to expand)
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Now the RSC server proxy for prefetching + hydration:
+
+⏺ Write(apps/web/trpc/server.tsx)
+  ⎿  Wrote 39 lines to apps/web/trpc/server.tsx
+      2 import "server-only";
+      3 import { cache } from "react";
+      4 import { dehydrate, HydrationBoundary } from "@tanstack/react-que
+        ry";
+      5 import { createTRPCClient, httpBatchLink } from "@trpc/client";
+      6 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-quer
+        y";
+      7 import type { AppRouter } from "@autogate/api";
+      8 import { makeQueryClient } from "./query-client";
+      9 import { getApiUrl } from "./shared";
+     … +35 lines (ctrl+o to expand)
+  ⎿  Found 4 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Now update the layout to wrap with the provider, and rewrite the page. Let me
+  read both first.
+
+  Read 1 file (ctrl+o to expand)
+  ⎿  Found 4 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Update(apps/web/app/layout.tsx)
+  ⎿  Added 1 line
+      1  import type { Metadata } from "next";
+      2  import localFont from "next/font/local";
+      3  import "./globals.css";
+      4 +import { TRPCReactProvider } from "../trpc/client";             
+      5  
+      6  const geistSans = localFont({
+      7    src: "./fonts/GeistVF.woff",
+
+⏺ Update(apps/web/app/layout.tsx)
+  ⎿  Added 2 lines, removed 2 lines
+      13  });
+      14  
+      15  export const metadata: Metadata = {
+      16 -  title: "Create Next App",                                    
+      17 -  description: "Generated by create next app",                 
+      16 +  title: "Autogate",                                           
+      17 +  description: "Automated PR safety layer — dashboard",        
+      18  };
+      19  
+      20  export default function RootLayout({
+
+⏺ Update(apps/web/app/layout.tsx)
+  ⎿  Added 1 line, removed 1 line
+      25    return (
+      26      <html lang="en">
+      27        <body className={`${geistSans.variable} ${geistMono.varia
+          ble}`}>
+      28 -        {children}                                             
+      28 +        <TRPCReactProvider>{children}</TRPCReactProvider>      
+      29        </body>
+      30      </html>
+      31    );
+
+⏺ Now the client component that consumes the typed query, and the page that
+  prefetches it server-side:
+
+⏺ Write(apps/web/app/_components/runs-list.tsx)
+  ⎿  Wrote 37 lines to apps/web/app/_components/runs-list.tsx
+       2 "use client";
+       3 import { useSuspenseQuery } from "@tanstack/react-query";
+       4 import { useTRPC } from "../../trpc/client";
+       6 /**
+       7  * Proves the end-to-end typed contract: `health` and `runs` com
+         e straight from
+         any`/`as`.pRouter` — `run` and `health` are fully inferred, no `
+       9  * Rename a field in the server's procedure and this component s
+         tops compiling.
+      10  *
+     … +33 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Write(apps/web/app/page.tsx)  ⎿  Added 17 lines, removed 91 lines
+        1 -import Image, { type ImageProps } from "next/image";          
+        2 -import { Button } from "@repo/ui/button";                     
+        1 +import { Suspense } from "react";                             
+        2 +import { getQueryClient, HydrateClient, trpc } from "../trpc/s
+          +erver";                                                       
+        3 +import { RunsList } from "./_components/runs-list";           
+        4  import styles from "./page.module.css";
+        5  
+        5 -type Props = Omit<ImageProps, "src"> & {                      
+        6 -  srcLight: string;                                           
+        7 -  srcDark: string;                                            
+        8 -};                                                            
+        6 +export default async function Home() {                        
+        7 +  const queryClient = getQueryClient();                       
+        8  
+       10 -const ThemeImage = (props: Props) => {                        
+       11 -  const { srcLight, srcDark, ...rest } = props;               
+        9 +  // Prefetch on the server so the client hydrates with data o
+          +n first paint.                                                
+       10 +  await Promise.all([                                         
+       11 +    queryClient.prefetchQuery(trpc.health.queryOptions()),    
+       12 +    queryClient.prefetchQuery(trpc.runs.list.queryOptions({ li
+          +mit: 20 })),                                                  
+       13 +  ]);                                                         
+       14  
+       15    return (
+       14 -    <>                                                        
+       15 -      <Image {...rest} src={srcLight} className="imgLight" /> 
+       16 -      <Image {...rest} src={srcDark} className="imgDark" />   
+       17 -    </>                                                       
+       18 -  );                                                          
+       19 -};                                                            
+       20 -                                                              
+       21 -export default function Home() {                              
+       22 -  return (                                                    
+       16      <div className={styles.page}>
+       17        <main className={styles.main}>
+       25 -        <ThemeImage                                           
+       26 -          className={styles.logo}                             
+       27 -          srcLight="turborepo-dark.svg"                       
+       28 -          srcDark="turborepo-light.svg"                       
+       29 -          alt="Turborepo logo"                                
+       30 -          width={180}                                         
+       31 -          height={38}                                         
+       32 -          priority                                            
+       33 -        />                                                    
+       34 -        <ol>                                                  
+       35 -          <li>                                                
+       36 -            Get started by editing <code>apps/web/app/page.tsx
+          -</code>                                                       
+       37 -          </li>                                               
+       38 -          <li>Save and see your changes instantly.</li>       
+       39 -        </ol>                                                 
+       40 -                                                              
+       41 -        <div className={styles.ctas}>                         
+       42 -          <a                                                  
+       43 -            className={styles.primary}                        
+       44 -            href="https://vercel.com/new/clone?demo-descriptio
+          -n=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+
+          -has+installed+three+local+packages.&demo-image=%2F%2Fimages.ct
+          -fassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6
+          -246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+
+          -Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%
+          -2F&from=templates&project-name=Monorepo+with+Turborepo&reposit
+          -ory-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithu
+          -b.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&ro
+          -ot-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=ver
+          -cel&utm_source=create-turbo"                                  
+       45 -            target="_blank"                                   
+       46 -            rel="noopener noreferrer"                         
+       47 -          >                                                   
+       48 -            <Image                                            
+       49 -              className={styles.logo}                         
+       50 -              src="/vercel.svg"                               
+       51 -              alt="Vercel logomark"                           
+       52 -              width={20}                                      
+       53 -              height={20}                                     
+       54 -            />                                                
+       55 -            Deploy now                                        
+       56 -          </a>                                                
+       57 -          <a                                                  
+       58 -            href="https://turborepo.dev/docs?utm_source"      
+       59 -            target="_blank"                                   
+       60 -            rel="noopener noreferrer"                         
+       61 -            className={styles.secondary}                      
+       62 -          >                                                   
+       63 -            Read our docs                                     
+       64 -          </a>                                                
+       65 -        </div>                                                
+       66 -        <Button appName="web" className={styles.secondary}>   
+       67 -          Open alert                                          
+       68 -        </Button>                                             
+       18 +        <h1>Autogate — runs</h1>                              
+       19 +        <p>Served over tRPC from the orchestrator/API, typed e
+          +nd-to-end.</p>                                                
+       20 +        <HydrateClient>                                       
+       21 +          <Suspense fallback={<p>Loading runs…</p>}>          
+       22 +            <RunsList />                                      
+       23 +          </Suspense>                                         
+       24 +        </HydrateClient>                                      
+       25        </main>
+       70 -      <footer className={styles.footer}>                      
+       71 -        <a                                                    
+       72 -          href="https://vercel.com/templates?search=turborepo&
+          -utm_source=create-next-app&utm_medium=appdir-template&utm_camp
+          -aign=create-next-app"                                         
+       73 -          target="_blank"                                     
+       74 -          rel="noopener noreferrer"                           
+       75 -        >                                                     
+       76 -          <Image                                              
+       77 -            aria-hidden                                       
+       78 -            src="/window.svg"                                 
+       79 -            alt="Window icon"                                 
+       80 -            width={16}                                        
+       81 -            height={16}                                       
+       82 -          />                                                  
+       83 -          Examples                                            
+       84 -        </a>                                                  
+       85 -        <a                                                    
+       86 -          href="https://turborepo.dev?utm_source=create-turbo"
+       87 -          target="_blank"                                     
+       88 -          rel="noopener noreferrer"                           
+       89 -        >                                                     
+       90 -          <Image                                              
+       91 -            aria-hidden                                       
+       92 -            src="/globe.svg"                                  
+       93 -            alt="Globe icon"                                  
+       94 -            width={16}                                        
+       95 -            height={16}                                       
+       96 -          />                                                  
+       97 -          Go to turborepo.dev →                               
+       98 -        </a>                                                  
+       99 -      </footer>                                               
+       26      </div>
+       27    );
+       28  }
+
+⏺ Now I need to declare the env vars I reference (PORT, WEB_ORIGIN,
+  NEXT_PUBLIC_API_URL) in turbo.json, otherwise the turbo/no-undeclared-env-vars
+  lint rule will fail with --max-warnings 0.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(turbo.json)
+  ⎿  Added 1 line
+      1  {
+      2    "$schema": "https://turborepo.dev/schema.json",
+      3    "ui": "tui",
+      4 +  "globalEnv": ["PORT", "WEB_ORIGIN", "NEXT_PUBLIC_API_URL"],   
+      5    "tasks": {
+      6      "build": {
+      7        "dependsOn": ["^build"],
+
+⏺ Now install deps and verify. Task 3 done, task 4 in progress.
+
+⏺ Bash(pnpm install 2>&1 | tail -40)
+  ⎿  Scope: all 8 workspace projects
+     Progress: resolved 1, reused 0, downloaded 0, added 0
+     Progress: resolved 28, reused 24, downloaded 3, added 0
+     … +20 lines (ctrl+o to expand)
+
+⏺ Installed. esbuild's build script was skipped (it's tsx's native binary) —
+  I'll approve it so tsx runs, then run type-checking.
+
+⏺ Bash(pnpm approve-builds 2>&1 | head -20; echo "--- exit ---")
+  ⎿  ? Choose which packages to build (Press <space> to select, <a> to togg
+     le all, <i> to invert selection) …
+     ❯ ○ esbuild--- exit ---
+  ⎿  Found 2 new diagnostic issues in 2 files (ctrl+o to expand)
+
+⏺ The approve prompt is interactive (won't work headless). Let me allowlist
+  esbuild's build via pnpm config instead, then run type-checking across the
+  repo.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # Allowlist esbuild's postinstall (needed for tsx's native binary) via
+      pnpm config…)
+  ⎿  added pnpm.onlyBuiltDependencies
+     Scope: all 8 workspace projects
+     Lockfile is up to date, resolution step is skipped
+     … +18 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm rebuild esbuild 2>&1 | tail -10…)
+  ⎿  --- test tsx ---
+     node ok
+     sh: tsx: command not found
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== esbuild binary present? ===" && ls
+      node_modules/.pnpm/esbuild@*/node_modules/esbuild/bin/ 2>/dev/null; ls
+      node_mod…)
+  ⎿  === esbuild binary present? ===
+     esbuild
+     === try tsx from apps/api ===
+     tsx runs: 2
+
+⏺ tsx runs fine (modern esbuild ships the native binary as an optional dep, so
+  the skipped postinstall doesn't matter). Now the full type-check gate:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate && pnpm turbo check-types 2>&1 | tail
+      -50)
+  ⎿  • turbo 2.9.18
+
+        • Packages in scope: @autogate/api, @repo/eslint-config, @repo/type
+     … +36 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ All 5 type-checks pass. Now let me boot apps/api and actually exercise the
+  tRPC endpoints.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/apps/api
+      PORT=3002 pnpm start > /tmp/autogate-api.log 2>&1 &…)
+  ⎿  started pid 7184
+
+     > api@0.1.0 start /Users/tyron/Developer/auto-gate/apps/api
+     … +110 lines (ctrl+o to expand)
+
+⏺ API works end-to-end: health, runs.list, and Zod-validated filtering
+  (repo=autogate correctly returns only run_03). Now verify the dashboard builds
+  and renders against the live API:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # API still running on 3002; build web (will prerender "/" which
+      prefetches from the API)…)
+  ⎿  > web@0.1.0 build /Users/tyron/Developer/auto-gate/apps/web
+     > next build
+     … +27 lines (ctrl+o to expand)
+⏺ Build succeeds, TypeScript passes, and / prerendered. Let me confirm the page
+  actually renders the data server-side (not just compiles) by serving the build
+  and inspecting the HTML:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/apps/web
+      NEXT_PUBLIC_API_URL=http://localhost:3002 pnpm start >
+      /tmp/autogate-web.log 2>&1 &…)
+  ⎿  web pid 7267
+     === rendered HTML (grep for data) ===
+     API status
+     … +15 lines (ctrl+o to expand)
+
+⏺ End-to-end verified — the dashboard server-renders all three runs
+  (run_01/02/03, titles, decisions, risk) pulled through the tRPC server →
+  TanStack Query prefetch → hydration. Let me shut down the dev servers and
+  finalize.
+
+⏺ Bash(pkill -f "tsx src/index.ts" 2>/dev/null; pkill -f "next start"
+      2>/dev/null; pkill -f "next-server" 2>/dev/null
+      sleep 1…)
+  ⎿  servers stopped
+      M apps/web/app/layout.tsx
+      M apps/web/app/page.tsx
+     … +10 lines (ctrl+o to expand)
+
+⏺ pnpm-workspace.yaml shows modified — that's from my esbuild config attempt.
+  Let me verify what changed there and in package.json.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== pnpm-workspace.yaml diff ===" && git diff pnpm-workspace.yaml…)
+  ⎿  === pnpm-workspace.yaml diff ===
+     diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+     index 3ff5faa..933642e 100644
+     … +26 lines (ctrl+o to expand)
+
+⏺ Two redundant onlyBuiltDependencies entries got written, and it turns out
+  esbuild's binary ships as an optional dep (tsx ran fine without the
+  postinstall), so the config isn't actually needed. Let me revert both to keep
+  the diff surgical.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git checkout pnpm-workspace.yaml package.json…)
+  ⎿  Updated 2 paths from the index
+     === restored. confirming clean ===
+     (no output above = clean)
+
+⏺ Type-checks already passed (revert only touched config, not node_modules).
+  Task 4 done. Now the doc updates — drop Hono, reflect tRPC.
+
+⏺ Update(docs/superpowers/specs/2026-06-13-autogate-design.md)
+  ⎿  Added 1 line, removed 1 line
+      31  LAYER 1 — GATE:  all existing GitHub checks must pass  (CI · li
+          nt · types · BUGBOT · any repo check)
+      32          │  Autogate reads check runs; only kicks off when ALL a
+          re green
+      33          ▼
+      34 -Orchestrator (Node/Hono):  queue (Postgres) → fan out L2 agents
+         - → synthesize → decide                                         
+      34 +Orchestrator (Node + tRPC):  queue (Postgres) → fan out L2 agen
+         +ts → synthesize → decide                                       
+      35          │
+      36  LAYER 2 — AI agents (Claude Agent SDK + RAG; read diff + repo, 
+          no app boot):
+      37          │   semantic · blast-radius · risk · pattern · security
+           · architecture
+
+⏺ Update(docs/superpowers/specs/2026-06-13-autogate-design.md)
+  ⎿  Added 1 line, removed 1 line
+      62  | `Store` | runs · verdicts · escalations · overrides | Postgre
+          s + Drizzle | in-mem repository |
+      63  | `Queue` | enqueue · claim · complete | Postgres table | in-me
+          m queue |
+      64  | `MonitoringClient` | errorsSince(deploy, change) | Datadog MC
+          P | synthetic feed |
+      65 -| `DashboardApi` | typed HTTP contract (see §6) | Hono routes |
+         - mock server |                                                 
+      65 +| `DashboardApi` | typed tRPC router (see §6) | tRPC standalone
+         + server (`@autogate/api`) | in-mem store + mock context |      
+      66  
+      67  ## 5. Key contracts
+      68  
+
+⏺ Now rewrite §6 from REST routes to a tRPC router (payload types preserved):
+
+⏺ Update(docs/superpowers/specs/2026-06-13-autogate-design.md)
+  ⎿  Added 17 lines, removed 10 lines
+      123  
+      124  ## 6. DashboardApi surface
+      125  
+      126 -(Designer builds the Next.js dashboard against this; mock serv
+          -er available from day one. No auth for hackday.)              
+      126 +The DashboardApi is a **tRPC router** (`@autogate/api`), not R
+          +EST. It is the single typed contract for the orchestrator/API 
+          +↔ dashboard seam: the server serves `appRouter` over a framewo
+          +rk-free tRPC standalone adapter; the dashboard imports only th
+          +e `AppRouter` *type* and gets end-to-end inference (rename a p
+          +rocedure field → the dashboard fails to compile). The dashboar
+          +d consumes it via the modern `@trpc/tanstack-react-query` inte
+          +gration (typed `queryOptions` + native TanStack Query hooks). 
+          +Build against the in-memory store + mock context from day one.
+          + No auth for hackday.                                         
+      127  
+      128 +```ts                                                         
+      129 +appRouter = {                                                 
+      130 +  health:  query() → { status: 'ok'; time: string }           
+          +               // liveness                                    
+      131 +  runs: {                                                     
+      132 +    list:      query({ repo?, status?, limit })   → RunSummary
+          +[]              // (cursor pagination later)                  
+      133 +    byId:      query({ runId })                   → RunDetail 
+      134 +    override:  mutation({ runId, action, reason }) → RunDetail
+          +                // action: 'approve_merge' | 'block'          
+      135 +    rollback:  mutation({ runId })                → RunDetail 
+      136 +    onUpdate:  subscription({ runId })            → RunDetail 
+          +deltas (SSE)    // replaces GET /api/runs/:id/stream          
+      137 +  }                                                           
+      138 +  metrics: query()                                → TrustMetri
+          +cs                                                            
+      139 +  repos:   query()                                → RepoSummar
+          +y[]                                                           
+      140 +  stream:  subscription()                         → RunSummary
+          + deltas (SSE)   // replaces GET /api/stream                   
+      141 +}                                                             
+      142  ```
+      129 -GET  /api/runs?repo=&status=&cursor=&limit=      → { items: Ru
+          -nSummary[], nextCursor? }                                     
+      130 -GET  /api/runs/:runId                            → RunDetail  
+      131 -POST /api/runs/:runId/override  { action, reason } → RunDetail
+          -   // 'approve_merge' | 'block'                               
+      132 -POST /api/runs/:runId/rollback                   → RunDetail  
+      133 -GET  /api/metrics                                → TrustMetric
+          -s                                                             
+      134 -GET  /api/repos                                  → RepoSummary
+          -[]                                                            
+      135 -GET  /api/stream                  (SSE)          → RunSummary 
+          -deltas                                                        
+      136 -GET  /api/runs/:runId/stream      (SSE)          → RunDetail d
+          -eltas                                                         
+      137 -```                                                           
+      143  
+      144 +Inputs are Zod-validated; the SSE streams map to tRPC v11 SSE 
+          +**subscriptions** (`httpSubscriptionLink`). All payload types 
+          +below are unchanged from the REST design.                     
+      145 +                                                              
+      146  ```ts
+      147  type RunSummary = {
+      148    runId: string
+
+⏺ Update(docs/superpowers/specs/2026-06-13-autogate-design.md)
+  ⎿  Added 1 line, removed 1 line
+      178  
+      179  ## 8. Stack
+      180  
+      181 -TypeScript monorepo **scaffolded via `create-turbo`** (pnpm wo
+          -rkspaces + Turborepo). Functional style, strict types. Orchest
+          -rator/API: Node + Hono. Agent runtime: Claude Agent SDK. Sandb
+          -ox: Docker. Store: Postgres + Drizzle. Queue: Postgres table. 
+          -Memory: Qdrant. Dashboard: Next.js (the scaffold's `apps/web`)
+          -. Monitoring: Datadog MCP. Infra: `setup.sh` + `docker-compose
+          -.yml` + `infra/repo-configs/{askable,autogate}.ts`. Verificati
+          -on gate per step: `turbo check-types` + exercising the artifac
+          -t (no test framework / no exhaustive suites).                 
+      181 +TypeScript monorepo **scaffolded via `create-turbo`** (pnpm wo
+          +rkspaces + Turborepo). Functional style, strict types. Orchest
+          +rator/API: Node + **tRPC v11** (standalone adapter, `apps/api`
+          +) — the typed contract lives in `packages/api` (`@autogate/api
+          +`). Agent runtime: Claude Agent SDK. Sandbox: Docker. Store: P
+          +ostgres + Drizzle. Queue: Postgres table. Memory: Qdrant. Dash
+          +board: Next.js (the scaffold's `apps/web`), consuming tRPC via
+          + `@trpc/tanstack-react-query` + TanStack Query v5. Monitoring:
+          + Datadog MCP. Infra: `setup.sh` + `docker-compose.yml` + `infr
+          +a/repo-configs/{askable,autogate}.ts`. Verification gate per s
+          +tep: `turbo check-types` + exercising the artifact (no test fr
+          +amework / no exhaustive suites).                              
+      182  
+      183  ## 9. Build order
+      184  
+
+⏺ Now the tickets. Let me read 01 and 11.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(tickets/01-orchestrator.md)
+  ⎿  Added 1 line, removed 1 line
+      12  The core domain loop: when a PR's existing GitHub checks are al
+          l green (Layer 1 gate), fan out the Layer-2 AI agents, synthesi
+          ze their `Verdict`s, and produce a `Decision` (auto-merge | esc
+          alate | block) with a risk score and, when escalating, a human 
+          **brief**. Pure logic over ports — imports no concrete adapter.
+      13  
+      14  ## Owns
+      15 -`apps/orchestrator` (API + worker) — `runPipeline`, `decide`, `
+         -buildBrief`, risk aggregation.                                 
+      15 +`apps/api` (API + worker) — `runPipeline`, `decide`, `buildBrie
+         +f`, risk aggregation. The tRPC server is already scaffolded her
+         +e (serves `@autogate/api`'s `appRouter` over the standalone ada
+         +pter); this ticket adds the orchestrator domain loop behind it 
+         +and backs the `DashboardApi` procedures with real data.        
+      16  
+      17  ## Consumes (ports, injected)
+      18  `VcsProvider`, `SandboxRunner`, `Store`, `Queue`, `MemoryClient
+          `, the `CheckSource` registry, and `Policy`.
+
+⏺ Update(tickets/01-orchestrator.md)
+  ⎿  Added 1 line
+      25    4. Persist verdicts → `decide` → post status/brief via `VcsPr
+          ovider`.
+      26  - `decide({ verdicts, gate, policy }) => Decision`: aggregate `
+          riskContribution`, apply `riskEscalateThreshold`, `escalateOnDi
+          sagreement`, `alwaysEscalatePaths`.
+      27  - `buildBrief({ pr, verdicts }) => string`: the "what to look a
+          t and why" summary for escalations.
+      28 +- Back the `DashboardApi` tRPC procedures (`@autogate/api`, spe
+         +c §6) with the `Store` instead of the scaffold's in-memory mock
+         +: `runs.list`/`runs.byId`/`metrics`/`repos` queries, `runs.over
+         +ride`/`runs.rollback` mutations, `stream`/`runs.onUpdate` subsc
+         +riptions. Resolvers read ports from context — no provider logic
+         + in procedures.                                                
+      29  
+      30  ## Definition of Done
+      31  - `pnpm turbo check-types` passes; no import of any adapter pac
+          kage (enforced by lint/review).
+
+⏺ Now ticket 11 (dashboard) — swap REST/mock-server language for the scaffolded
+  tRPC client:
+⏺ Update(tickets/11-dashboard.md)
+  ⎿  Added 11 lines, removed 11 lines
+       9  # 11 — Dashboard
+      10  
+      11  ## Goal
+      12 -The release-view UI: a designer is building this in Claude desi
+         -gn against the `DashboardApi` contract. This ticket covers wiri
+         -ng it to the API (real + mock server) and the three surfaces.  
+      12 +The release-view UI: a designer is building this in Claude desi
+         +gn against the `DashboardApi` contract. This ticket covers wiri
+         +ng it to the tRPC API and building the three surfaces.         
+      13  
+      14  ## Owns
+      15 -`apps/web` (the scaffold's Next.js app) — App Router + Tailwind
+         - + shadcn/ui, typed client generated from `DashboardApi`.      
+      15 +`apps/web` (the scaffold's Next.js app) — App Router + Tailwind
+         + + shadcn/ui. The tRPC + TanStack Query foundation is **already
+         + scaffolded** (`apps/web/trpc/*`: query-client factory, `TRPCRe
+         +actProvider`, RSC server proxy + `HydrateClient`, `useTRPC`), c
+         +onsuming `@autogate/api`'s `AppRouter` type end-to-end via the 
+         +modern `@trpc/tanstack-react-query` integration (`queryOptions`
+         + + native TanStack Query hooks — no legacy `useQuery` hooks). B
+         +uild new surfaces on that.                                     
+      16  
+      17  ## Surfaces
+      18 -1. **Release stream (home):** live table across both repos — PR
+         -, repo, risk, **gate status (Layer 1 GitHub checks incl. bugbot
+         -)**, Layer-2 check chips, decision. Status includes `awaiting_c
+         -hecks` (gate not yet green). Filters by repo/status. Live via `
+         -/api/stream` (SSE).                                            
+      19 -2. **Run detail:** decision + reasons + brief, the raw **`gateC
+         -hecks`** (Layer 1 GitHub checks with conclusions/links), every 
+         -Layer-2 `CheckResult`, monitoring panel. Live via `/api/runs/:i
+         -d/stream`.                                                     
+      20 -3. **Human override:** approve-merge / block + required reason 
+         -→ `POST /api/runs/:id/override`; rollback button → `POST /api/r
+         -uns/:id/rollback`.                                             
+      21 -4. (If time) **Trust metric** chart from `/api/metrics` (agreem
+         -ent rate over time).                                           
+      18 +1. **Release stream (home):** live table across both repos — PR
+         +, repo, risk, **gate status (Layer 1 GitHub checks incl. bugbot
+         +)**, Layer-2 check chips, decision. Status includes `awaiting_c
+         +hecks` (gate not yet green). Filters by repo/status via `runs.l
+         +ist` input. Live via the `stream` subscription (tRPC SSE).     
+      19 +2. **Run detail:** decision + reasons + brief, the raw **`gateC
+         +hecks`** (Layer 1 GitHub checks with conclusions/links), every 
+         +Layer-2 `CheckResult`, monitoring panel. Query `runs.byId`; liv
+         +e via the `runs.onUpdate` subscription.                        
+      20 +3. **Human override:** approve-merge / block + required reason 
+         +→ `runs.override` mutation; rollback button → `runs.rollback` m
+         +utation (use `useMutation(trpc.runs.override.mutationOptions())
+         +` + invalidate).                                               
+      21 +4. (If time) **Trust metric** chart from the `metrics` query (a
+         +greement rate over time).                                      
+      22  
+      23  ## Deliverables
+      24 -- Typed API client + a **mock server** implementing `DashboardA
+         -pi` (so UI dev needs no backend).                              
+      25 -- The three surfaces wired to the contract.                    
+      24 +- New surfaces built on the existing typed tRPC client (prefetc
+         +h in RSC + `useSuspenseQuery` on the client, per the scaffolded
+         + `app/page.tsx` pattern).                                      
+      25 +- No separate mock server needed: `apps/api` already serves `ap
+         +pRouter` over the in-memory mock store; UI dev runs against it 
+         +(real adapters swap in via ticket 01/03 with no component chang
+         +es).                                                           
+      26  
+      27  ## Definition of Done
+      28  - `pnpm turbo check-types` passes.
+      29 -- Renders fully against the mock server (seeded runs covering a
+         -ll decision + `awaiting_checks` states).                       
+      30 -- Swapping mock base-URL for the real API needs no component ch
+         -anges.                                                         
+      31 -- Override + rollback POSTs hit the contract and optimistically
+         - update.                                                       
+      29 +- Renders fully against `apps/api` (seeded runs covering all de
+         +cision + `awaiting_checks` states).                            
+      30 +- Swapping the in-memory store for the real adapters needs no c
+         +omponent changes.                                              
+      31 +- Override + rollback mutations hit the router and optimistical
+         +ly update / invalidate.                                        
+      32  
+      33  ## Notes
+      34  - No auth for hackday.
+
+⏺ Let me add a brief coordination note to ticket 00 (not implementing it — just
+  flagging the tRPC decision for the other engineer), and check the READMEs for
+  stale Hono/REST references.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== grep Hono/REST/api routes across docs+tickets+README ==="…)
+  ⎿  === grep Hono/REST/api routes across docs+tickets+README ===
+     docs/superpowers/specs/2026-06-13-autogate-design.md:126:The Dashboard
+     Api is a **tRPC router** (`@autogate/api`), not REST. It is the single
+     … +28 lines (ctrl+o to expand)
+
+⏺ Two stale /api/runs references remain in ticket 03 (the store ticket
+  references the old REST route for its pagination contract). The ticket-04
+  "REST/GraphQL" is GitHub's own API, not ours — leave it. Updating ticket 03:
+
+⏺ Update(tickets/03-store-postgres.md)
+  ⎿  File must be read first
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(tickets/03-store-postgres.md)
+  ⎿  Added 1 line, removed 1 line
+      16  
+      17  ## Deliverables
+      18  - Drizzle schema + migrations for: `runs`, `verdicts`, `escalat
+          ions`, `overrides`, `jobs`.
+      19 -- `Store`: create/get/list runs (with filters + cursor paginati
+         -on for `/api/runs`), append verdicts, record escalation, record
+         - override.                                                     
+      19 +- `Store`: create/get/list runs (with filters + cursor paginati
+         +on for the `runs.list` tRPC query), append verdicts, record esc
+         +alation, record override.                                      
+      20  - `Queue`: `enqueue`, `claim` (atomic, `FOR UPDATE SKIP LOCKED`
+          ), `complete`/`fail`.
+      21  - Seed script for demo data.
+      22  
+
+⏺ Update(tickets/03-store-postgres.md)
+  ⎿  Added 1 line, removed 1 line
+      27  - Migrations run clean from an empty DB via the CLI (ticket 13)
+          .
+      28  
+      29  ## Notes
+      30 -- Pagination shape must match `DashboardApi` `/api/runs` (`{ it
+         -ems, nextCursor }`).                                           
+      30 +- Pagination shape must match the `DashboardApi` `runs.list` qu
+         +ery (`{ items, nextCursor }`).                                 
+      31  - Keep queries in repository functions; no ORM leakage past the
+           port.
+
+⏺ Now the coordination note on ticket 00 — flagging the tRPC decision for the
+  other engineer (not implementing it):
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(tickets/00-contracts.md)
+  ⎿  Added 1 line, removed 1 line
+      17  ## Deliverables
+      18  - Zod schemas + inferred TS types for: `Verdict`, `Finding`, `S
+          everity`, `VerdictStatus`, `RunContext`, `PullRequest`, `CheckS
+          ource`, `Policy`, `RepoConfig`.
+      19  - Port interfaces: `VcsProvider` (incl. `awaitAllChecks`, `list
+          CheckRuns`), `SandboxRunner`, `AgentSdk`, `MemoryClient`, `Stor
+          e`, `Queue`, `MonitoringClient`.
+      20 -- `DashboardApi` request/response schemas (`RunSummary`, `Check
+         -Result`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec
+         - §6.                                                           
+      20 +- `DashboardApi` request/response schemas (`RunSummary`, `Check
+         +Result`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec
+         + §6. **Note:** the `DashboardApi` is now a **tRPC router** (`@a
+         +utogate/api`), not REST — these Zod schemas are consumed as the
+         + procedures' input/output types. `@autogate/api` currently ship
+         +s scaffold copies of `RunSummary` + the `runs.list` input (`pac
+         +kages/api/src/schemas.ts`, marked to delete) until this package
+         + lands and they import from `@autogate/contracts`.             
+      21  - `packages/contracts/mocks/*` — an in-memory implementation of
+           every port (deterministic, seedable) so all Phase-1 packages b
+          uild without infra.
+      22  
+      23  ## Contract (authoritative source: spec §4–§6)
+
+⏺ All docs updated. Let me run a final full verification — both check-types and
+  lint across the repo (lint matters because of the turbo/no-undeclared-env-vars
+  rule and --max-warnings 0):
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== check-types ===" && pnpm turbo check-types 2>&1 | tail -6…)
+  ⎿  === check-types ===
+     api:check-types:
+     … +36 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ Only issue: my eslint-disable no-console is flagged as unused — the base
+  config doesn't enable no-console, so console.log is already allowed and the
+  directive is unnecessary. (web/docs got interrupted by turbo when api failed,
+  not real errors.) Removing it:
+
+⏺ Update(apps/api/src/index.ts)
+  ⎿  Removed 1 line
+      20  });
+      21  
+      22  server.listen(PORT);
+      23 -// eslint-disable-next-line no-console                         
+      23  console.log(`🚪 autogate api (tRPC) listening on http://localho
+          st:${PORT}`);
+
+⏺ Bash(pnpm turbo lint 2>&1 | tail -12)
+  ⎿  web:lint: > web@0.1.0 lint /Users/tyron/Developer/auto-gate/apps/web
+     web:lint: > eslint --max-warnings 0
+     web:lint:
+     … +9 lines (ctrl+o to expand)
+
+⏺ All green — 5/5 lint pass, 5/5 check-types pass. Task complete.
+
+⏺ Bash(git status --short)
+  ⎿   M apps/web/app/layout.tsx
+      M apps/web/app/page.tsx
+      M apps/web/next.config.js
+     … +12 lines (ctrl+o to expand)
+
+⏺ Done. tRPC is wired in as the typed contract for the orchestrator/API ↔
+  dashboard seam, all-modern stack, verified end-to-end.
+
+  What landed
+
+  packages/api (@autogate/api) — the tRPC contract layer
+  - initTRPC + injected Context (ports, not adapters), appRouter (health +
+  runs.list), export type AppRouter
+  - Scaffold Zod schemas + in-memory store, clearly marked to delete once
+  @autogate/contracts ships (per your note that another engineer owns it —
+  packages/api has no dependency on it)
+
+  apps/api — the orchestrator/API server (replaces the planned Hono)
+  - tRPC standalone adapter (framework-free Node), CORS, mock store injected at
+  the boundary, port 3002
+
+  apps/web — dashboard, modern best practices only
+  - @trpc/tanstack-react-query v11 (typed queryOptions + native TanStack Query
+  v5 hooks — no legacy useQuery hooks)
+  - RSC server proxy with prefetch → HydrateClient hydration → useSuspenseQuery
+  on the client
+  - Rename a procedure field and the dashboard fails to compile
+
+  Docs — design spec §3/§4/§6/§8 and tickets 00/01/03/11 updated: Hono → tRPC,
+  REST routes → tRPC procedures, mock-server → live apps/api.
+
+  Verified (not just compiled)
+
+  - pnpm turbo check-types — 5/5 pass
+  - pnpm turbo lint — 5/5 pass
+  - Booted apps/api, hit health and runs.list over HTTP, confirmed Zod filtering
+  (repo=autogate → only run_03)
+  - Built apps/web and served it — the page server-renders all three runs
+  (titles, decisions, risk) pulled through tRPC → prefetch → hydration, no
+  any/as
+
+  To run it: pnpm --filter api dev (API on :3002) + pnpm --filter web dev
+  (dashboard on :3000).
+
+  Two notes:
+  - I left everything uncommitted — say the word and I'll commit (currently on
+  main, so I'd branch first).
+  - Pre-existing, unrelated: there's a stray package-lock.json in the parent dir
+  (/Users/tyron/Developer/) making Next warn about workspace-root inference.
+  Harmless, but worth deleting if it's not meant to be there.
+
+  Want me to commit this, or extend the scaffold (e.g. wire up a real
+  subscription for the SSE stream)?
+
+✻ Cooked for 11m 21s
+
+❯ Trpc should be in nextjs routes not a standalone app? Why have we done this?  
+  here is the documentation -                                                   
+  https://trpc.io/docs/client/nextjs/app-router-setup                           
+⏺ You're right to push on this — let me ground it in the actual docs first.
+
+⏺ Fetch(https://trpc.io/docs/client/nextjs/app-router-setup)
+  ⎿  Received 291.1KB (200 OK)
+
+⏺ Fetched the docs. Here's the honest answer.
+
+  Why I built it standalone: the Autogate design describes a separate
+  long-running orchestrator backend — a Postgres-backed job queue with workers,
+  a Docker sandbox that clones PRs, fan-out to Claude agents. None of that is a
+  Next.js workload (you can't run a persistent queue worker or spawn Docker from
+  a route handler). The design literally says "Orchestrator (Node + tRPC)", so
+  I put the dashboard's API on that service and made the dashboard a thin HTTP
+  client. That's an explicitly supported tRPC pattern — the same docs say "if 
+  your router is on a separate server, pass a client instead", which is exactly
+  what my server.tsx does.
+
+  But you're right that it's the wrong default here. The documented, idiomatic
+  App Router setup is the route handler at app/api/trpc/[trpc]/route.ts (fetch
+  adapter), and for a foundation scaffold it's strictly better:
+  - One process, no CORS, no second server to boot.
+  - RSC calls procedures directly in-process (no HTTP hop) — so next build even
+  prerenders without anything else running. My version needed the standalone
+  server up to build.
+  - It's literally the docs you linked.
+
+  I made a defensible call but should have surfaced it as a fork instead of
+  silently picking standalone — that's on me.
+
+  The clean fix keeps the good part and drops the wart: packages/api stays (the
+  router/contract is still a shared package the future worker + CLI can import),
+  I delete the standalone apps/api, and mount appRouter in a Next route
+  handler. The orchestrator (ticket 01) becomes a headless worker that shares
+  the Postgres Store — the dashboard's override/rollback mutations enqueue jobs
+  the worker picks up, so Next never needs Docker/agents. That separation is
+  actually cleaner than what I had.
+
+  Let me refactor it now.
+
+⏺ Bash(rm -rf apps/api && echo "removed standalone apps/api")
+  ⎿  removed standalone apps/api
+
+⏺ Now the route handler (mounts the same appRouter):
+
+⏺ Write(apps/web/app/api/trpc/[trpc]/route.ts)
+  ⎿  Wrote 22 lines to apps/web/app/api/trpc/[trpc]/route.ts
+         ";port { fetchRequestHandler } from "@trpc/server/adapters/fetch
+         pi";rt { appRouter, createContext, mockStore } from "@autogate/a
+       4 /**
+       5  * The DashboardApi endpoint. Mounts the shared `@autogate/api` 
+       6  * Next.js Route Handler via the fetch adapter (the App Router-i
+       7  *omatic setup).
+       8  * Dependency injection happens here at the boundary: the in-mem
+       9  * is wired into the request context. Once the orchestrator's re
+      10  * `Store` lands (ticket 03), swap this one argument — no router
+         /procedure edits.
+     … +18 lines (ctrl+o to expand)
+  ⎿  Found 3 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ (That diagnostic is the now-deleted apps/api/src/index.ts — stale.) Now
+  rewrite the RSC server proxy to call the router directly in-process — no HTTP,
+  no running server needed:
+
+⏺ Write(apps/web/trpc/server.tsx)
+  ⎿  Added 8 lines, removed 11 lines
+       2  
+       3  import { cache } from "react";
+       4  import { dehydrate, HydrationBoundary } from "@tanstack/react-q
+          uery";
+       5 -import { createTRPCClient, httpBatchLink } from "@trpc/client";
+       5  import { createTRPCOptionsProxy } from "@trpc/tanstack-react-qu
+          ery";
+       7 -import type { AppRouter } from "@autogate/api";                
+       6 +import { appRouter, createContext, mockStore } from "@autogate/
+         +api";                                                          
+       7  import { makeQueryClient } from "./query-client";
+       9 -import { getApiUrl } from "./shared";                          
+       8  
+       9  /**
+      10   * One QueryClient per RSC request, cached so a Server Componen
+          t's prefetch and
+     ...
+      12   */
+      13  export const getQueryClient = cache(makeQueryClient);
+      14  
+      17 -const trpcClient = createTRPCClient<AppRouter>({               
+      18 -  links: [httpBatchLink({ url: getApiUrl() })],                
+      19 -});                                                            
+      20 -                                                               
+      15  /**
+      22 - * Server-side typed proxy. Use in Server Components to build `
+         -queryOptions`                                                  
+      23 - * for prefetching, e.g.                                       
+      16 + * Server-side typed proxy. Because the router is co-located (s
+         +ame Next process),                                             
+      17 + * `queryOptions` here call the procedures **directly in-proces
+         +s** — no HTTP hop,                                             
+      18 + * no running API server needed (so `next build` can prerender)
+         +. Use in Server                                                
+      19 + * Components to prefetch, e.g.                                
+      20   *   await getQueryClient().prefetchQuery(trpc.runs.list.queryO
+          ptions({ limit: 20 }))
+      21   */
+      26 -export const trpc = createTRPCOptionsProxy<AppRouter>({        
+      27 -  client: trpcClient,                                          
+      22 +export const trpc = createTRPCOptionsProxy({                   
+      23 +  router: appRouter,                                           
+      24 +  ctx: createContext({ store: mockStore }),                    
+      25    queryClient: getQueryClient,
+      26  });
+      27  
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now the URL helper and client provider point at the relative /api/trpc:
+
+⏺ Write(apps/web/trpc/shared.ts)
+  ⎿  Added 11 lines, removed 3 lines
+       1 -/** Base URL of the orchestrator/API tRPC server. */           
+       2 -export function getApiUrl() {                                  
+       3 -  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3
+         -002";                                                          
+       1 +/**                                                            
+       2 + * URL of the tRPC route handler. Relative in the browser; abso
+         +lute during SSR                                                
+       3 + * (the browser `httpBatchLink` needs a fully-qualified URL whe
+         +n there's no                                                   
+       4 + * `window`). RSC calls the router directly (see `server.tsx`) 
+         +and never use this.                                            
+       5 + */                                                            
+       6 +export function getTrpcUrl() {                                 
+       7 +  const base =                                                 
+       8 +    typeof window !== "undefined"                              
+       9 +      ? ""                                                     
+      10 +      : `http://localhost:${process.env.PORT ?? 3000}`;        
+      11 +  return `${base}/api/trpc`;                                   
+      12  }
+
+⏺ Update(apps/web/trpc/client.tsx)
+  ⎿  Added 1 line, removed 1 line
+       6  import { createTRPCContext } from "@trpc/tanstack-react-query";
+       7  import type { AppRouter } from "@autogate/api";
+       8  import { makeQueryClient } from "./query-client";
+       9 -import { getApiUrl } from "./shared";                          
+       9 +import { getTrpcUrl } from "./shared";                         
+      10  
+      11  /**
+      12   * Modern `@trpc/tanstack-react-query` integration: `useTRPC()`
+           returns a typed
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Lets just leave it how it is with the seperate setup                          
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ No problem — reverting to the standalone setup. Let me undo the partial
+  refactor.
+
+  First, restore the three apps/web/trpc files and remove the route handler:
+
+⏺ Update(apps/web/trpc/client.tsx)
+  ⎿  Added 1 line, removed 1 line
+       6  import { createTRPCContext } from "@trpc/tanstack-react-query";
+       7  import type { AppRouter } from "@autogate/api";
+       8  import { makeQueryClient } from "./query-client";
+       9 -import { getTrpcUrl } from "./shared";                         
+       9 +import { getApiUrl } from "./shared";                          
+      10  
+      11  /**
+      12   * Modern `@trpc/tanstack-react-query` integration: `useTRPC()`
+           returns a typed
+
+⏺ Write(apps/web/trpc/shared.ts)
+  ⎿  Added 3 lines, removed 11 lines
+       1 -/**                                                            
+       2 - * URL of the tRPC route handler. Relative in the browser; abso
+         -lute during SSR                                                
+       3 - * (the browser `httpBatchLink` needs a fully-qualified URL whe
+         -n there's no                                                   
+       4 - * `window`). RSC calls the router directly (see `server.tsx`) 
+         -and never use this.                                            
+       5 - */                                                            
+       6 -export function getTrpcUrl() {                                 
+       7 -  const base =                                                 
+       8 -    typeof window !== "undefined"                              
+       9 -      ? ""                                                     
+      10 -      : `http://localhost:${process.env.PORT ?? 3000}`;        
+      11 -  return `${base}/api/trpc`;                                   
+       1 +/** Base URL of the orchestrator/API tRPC server. */           
+       2 +export function getApiUrl() {                                  
+       3 +  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3
+         +002";                                                          
+       4  }
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now revert server.tsx to the standalone HTTP-client version:
+
+⏺ Write(apps/web/trpc/server.tsx)
+  ⎿  Added 11 lines, removed 8 lines
+       2  
+       3  import { cache } from "react";
+       4  import { dehydrate, HydrationBoundary } from "@tanstack/react-q
+          uery";
+       5 +import { createTRPCClient, httpBatchLink } from "@trpc/client";
+       6  import { createTRPCOptionsProxy } from "@trpc/tanstack-react-qu
+          ery";
+       6 -import { appRouter, createContext, mockStore } from "@autogate/
+         -api";                                                          
+       7 +import type { AppRouter } from "@autogate/api";                
+       8  import { makeQueryClient } from "./query-client";
+       9 +import { getApiUrl } from "./shared";                          
+      10  
+      11  /**
+      12   * One QueryClient per RSC request, cached so a Server Componen
+          t's prefetch and
+     ...
+      14   */
+      15  export const getQueryClient = cache(makeQueryClient);
+      16  
+      17 +const trpcClient = createTRPCClient<AppRouter>({               
+      18 +  links: [httpBatchLink({ url: getApiUrl() })],                
+      19 +});                                                            
+      20 +                                                               
+      21  /**
+      16 - * Server-side typed proxy. Because the router is co-located (s
+         -ame Next process),                                             
+      17 - * `queryOptions` here call the procedures **directly in-proces
+         -s** — no HTTP hop,                                             
+      18 - * no running API server needed (so `next build` can prerender)
+         -. Use in Server                                                
+      19 - * Components to prefetch, e.g.                                
+      22 + * Server-side typed proxy. Use in Server Components to build `
+         +queryOptions`                                                  
+      23 + * for prefetching, e.g.                                       
+      24   *   await getQueryClient().prefetchQuery(trpc.runs.list.queryO
+          ptions({ limit: 20 }))
+      25   */
+      22 -export const trpc = createTRPCOptionsProxy({                   
+      23 -  router: appRouter,                                           
+      24 -  ctx: createContext({ store: mockStore }),                    
+      26 +export const trpc = createTRPCOptionsProxy<AppRouter>({        
+      27 +  client: trpcClient,                                          
+      28    queryClient: getQueryClient,
+      29  });
+      30  
+
+⏺ Now remove the route handler and recreate the standalone apps/api:
+
+⏺ Bash(rm -rf apps/web/app/api && echo "removed route handler" && mkdir -p
+      apps/api/src && echo "recreated apps/api/src")  ⎿  removed route handler
+     recreated apps/api/src
+
+⏺ Write(apps/api/package.json)
+  ⎿  Wrote 26 lines to apps/api/package.json
+       1 {
+       2   "name": "api",
+       3   "version": "0.1.0",
+       4   "type": "module",
+       5   "private": true,
+       6   "scripts": {
+       7     "dev": "tsx watch src/index.ts",
+       8     "start": "tsx src/index.ts",
+       9     "lint": "eslint . --max-warnings 0",
+      10     "check-types": "tsc --noEmit"
+     … +16 lines (ctrl+o to expand)
+
+⏺ Write(apps/api/tsconfig.json)
+  ⎿  Wrote 11 lines to apps/api/tsconfig.json
+       1 {
+       2   "extends": "@repo/typescript-config/base.json",
+       3   "compilerOptions": {
+       4     "module": "ESNext",
+       5     "moduleResolution": "Bundler",
+       6     "lib": ["ES2022"],
+       7     "noEmit": true
+       8   },
+       9   "include": ["src"],
+      10   "exclude": ["node_modules"]
+     … +1 line (ctrl+o to expand)
+
+⏺ Write(apps/api/eslint.config.mjs)
+  ⎿  Wrote 4 lines to apps/api/eslint.config.mjs
+      1 import { config } from "@repo/eslint-config/base";
+      2 
+      3 /** @type {import("eslint").Linter.Config[]} */
+      4 export default config;
+
+⏺ Write(apps/api/src/index.ts)
+  ⎿  Wrote 23 lines to apps/api/src/index.ts
+         ne";rt { createHTTPServer } from "@trpc/server/adapters/standalo
+       2 import cors from "cors";
+         pi";rt { appRouter, createContext, mockStore } from "@autogate/a
+       4 
+       6 const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3
+         000";
+       8 /**
+       9  * Orchestrator/API HTTP server. Serves the `@autogate/api` tRPC
+      10  * framework-free Node server (this is what replaced the planned
+          Hono setup).
+     … +20 lines (ctrl+o to expand)
+
+⏺ Restored. Now reinstall to relink the apps/api workspace, then re-verify
+  everything passes:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm install 2>&1 | tail -6…)
+  ⎿  Scope: all 7 workspace projects
+     Progress: resolved 0, reused 1, downloaded 0, added 0
+     Already up to date
+     … +14 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+  ⎿  Found 6 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ check-types/lint report only 4 packages (was 5) and the IDE shows apps/api
+  can't resolve its deps — pnpm install said "already up to date" and didn't
+  relink apps/api's node_modules (I deleted then recreated an identical
+  package.json, so the lockfile looked unchanged). Let me force the relink and
+  confirm apps/api is actually wired up.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== apps/api/node_modules present? ===" && ls apps/api/node_modules
+      2>/dev/null | head || echo "MISSING"…)
+  ⎿  === apps/api/node_modules present? ===
+     @autogate
+     @repo
+     … +30 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ apps/api/node_modules is correctly linked (the IDE warnings were stale). Let
+  me run the full verification cleanly — types, lint, and an actual server boot
+  + request:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== check-types ===" && pnpm turbo check-types 2>&1 | grep -E
+      "Tasks:|successful|error" | tail -3…)
+  ⎿  === check-types ===
+     web:check-types: ✓ Types generated successfully
+      Tasks:    4 successful, 4 total
+     … +16 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ Types and lint pass and the server works (health + filtered runs.list
+  correct). But check-types/lint show 4 packages when I'd expect 5 — let me
+  confirm which packages are actually covered, since I don't want apps/api
+  silently skipped.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== packages with check-types script ===" && pnpm -r exec node -e
+      "const p=require('./package.json'); if(p.scripts&&p.…)
+  ⎿  === packages with check-types script ===
+     @autogate/api
+     @repo/ui
+     … +5 lines (ctrl+o to expand)
+
+⏺ docs dropped out of the task list — it had a check-types script earlier. I
+  never touched it, so let me make sure apps/docs wasn't collateral damage from
+  the rm commands.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== apps/docs exists? ===" && ls apps/docs 2>/dev/null || echo
+      "MISSING"…)
+  ⎿  === apps/docs exists? ===
+     MISSING
+     === apps/docs/package.json scripts ===
+     … +25 lines (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ I deleted docs. Lets just focus on the task                                   
+
+⏺ Got it — that was your deletion, not collateral. Standalone setup is fully
+  restored and back to the verified state.
+
+  Final state:
+  - packages/api (@autogate/api) — tRPC router + AppRouter type, scaffold
+  schemas/mock store
+  - apps/api — standalone tRPC server (createHTTPServer + cors) on :3002
+  - apps/web — modern @trpc/tanstack-react-query client → server
+  proxy/prefetch/hydrate → http://localhost:3002
+
+  Verified just now:
+  - pnpm turbo check-types — pass (@autogate/api, api, web, @repo/ui)
+  - pnpm turbo lint — pass
+  - Booted apps/api, health returns ok, runs.list?repo=autogate correctly
+  returns ['run_03']
+
+  The apps/web/trpc/* files are byte-identical to the version I verified
+  rendering end-to-end earlier, so the dashboard flow is unchanged. Docs/tickets
+  already reflect the standalone tRPC setup from the earlier doc pass — nothing
+  there references the route-handler detour.
+
+  Run it with pnpm --filter api dev + pnpm --filter web dev. Everything's
+  uncommitted on main. Want me to commit?
+
+✻ Worked for 13s
+
+❯ yeah commit and push to main                                                  
+
+⏺ On it. The user explicitly asked for main, so I'll commit there (including
+  your apps/docs deletion so the tree is clean). Let me check remote/branch
+  state first, then commit and push.
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== branch ===" && git rev-parse --abbrev-ref HEAD…)
+  ⎿  === branch ===
+     main
+     === remote ===
+     … +40 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  === staged summary ===
+      apps/docs/public/vercel.svg                        |  10 -
+      apps/docs/public/window.svg                        |   3 -
+     … +28 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git commit -q -F - <<'EOF'…)
+  ⎿  === committed ===
+     b4720d7 Add tRPC contract layer for orchestrator/API ↔ dashboard
+     === push ===
+     … +12 lines (ctrl+o to expand)
+
+⏺ Committed, but the push was rejected — origin/main has commits I don't have
+  locally (someone else pushed). Let me fetch and rebase on top, then push.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git fetch origin 2>&1 | tail -5…)
+  ⎿  From github.com:isaacpovey/auto-gate
+        fea7030..ad0d597  main       -> origin/main
+     === incoming commits on origin/main not local ===
+     … +25 lines (ctrl+o to expand)
+
+⏺ The other engineer just landed ticket 00 — @autogate/contracts now exists on 
+  main. That's exactly the package my scaffold schemas are placeholders for.
+  Both sides edited the design spec and pnpm-lock.yaml, so I'll rebase and
+  resolve conflicts.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git rebase origin/main 2>&1 | tail -20)
+  ⎿  Rebasing (1/1)Auto-merging docs/superpowers/specs/2026-06-13-autogate-
+     design.md
+     Auto-merging pnpm-lock.yaml
+     … +13 lines (ctrl+o to expand)
+
+⏺ The design spec auto-merged cleanly (both sets of edits coexist). Only
+  pnpm-lock.yaml conflicts — I'll regenerate it rather than hand-merge: take
+  origin/main's lockfile (which has @autogate/contracts) as the base, then pnpm 
+  install to layer my tRPC deps back on.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # take origin/main's lockfile as base (has @autogate/contracts), then
+      reinstall to add my deps…)
+  ⎿  │
+              │
+     │   Ignored build scripts: esbuild, sharp.
+     … +14 lines (ctrl+o to expand)
+
+⏺ Lockfile clean. Stage it and continue the rebase:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add pnpm-lock.yaml…)
+  ⎿   create mode 100644 packages/api/src/index.ts
+      create mode 100644 packages/api/src/root.ts
+      create mode 100644 packages/api/src/routers/runs.ts
+     … +5 lines (ctrl+o to expand)
+
+⏺ Rebase succeeded. Now @autogate/contracts is in the tree alongside my work.
+  Let me re-verify the full repo (types + lint) before pushing, since the trees
+  merged:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== check-types ===" && pnpm turbo check-types 2>&1 | grep -E
+      "Tasks:|error|Error|FAIL" | tail -5…)
+  ⎿  === check-types ===
+      Tasks:    5 successful, 5 total
+     === lint ===
+     … +5 lines (ctrl+o to expand)
+
+⏺ All green post-rebase (check-types 5/5 now includes @autogate/contracts).
+  Pushing:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git push origin main 2>&1 | tail -6…)
+  ⎿  remote: This repository moved. Please use the new location:
+     remote:   git@github.com:isaacpovey/autogate.git
+     To github.com:isaacpovey/auto-gate.git
+     … +7 lines (ctrl+o to expand)
+
+⏺ Pushed to main — ad0d597..2d70e72. Your commit is now on top of the contracts
+  work.
+
+  Done:
+  - Committed and pushed the tRPC contract layer to main.
+  - Rebased cleanly onto the two commits that landed while we worked (ticket 00
+  @autogate/contracts + ticket 14 gate actions). Design spec auto-merged;
+  pnpm-lock.yaml regenerated.
+  - Re-verified post-rebase: check-types 5/5, lint 4/4.
+
+  Two heads-ups:
+  1. @autogate/contracts now exists on main — that's the real home for the
+  schemas/ports my packages/api stubbed (src/schemas.ts + src/store.ts, both
+  marked SCAFFOLD ONLY). The obvious follow-up is to swap packages/api over to
+  import RunSummary + the runs/store types from @autogate/contracts and delete
+  the placeholders. Want me to do that swap now while it's fresh?
+  2. Git noted the repo moved: isaacpovey/auto-gate → isaacpovey/autogate. The
+  push still worked via redirect, but you may want to update the remote: git 
+  remote set-url origin git@github.com:isaacpovey/autogate.git.
+
+✻ Cogitated for 2m 0s
+
+❯ yeah lets do both of these                                                    
+
+⏺ I'll do both. Let me first look at what @autogate/contracts actually exports
+  so I swap to the right names, then update the remote URL in parallel.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== fix remote url ===" && git remote set-url origin
+      git@github.com:isaacpovey/autogate.git && git remote -v…)
+  ⎿  Denied by auto mode classifier ∙ see 
+     https://code.claude.com/docs/s/claude-code-auto-mode
+
+⏺ The git remote set-url was blocked by the permission classifier (it flags
+  remote repointing as risky, even though that URL came straight from GitHub's
+  own "repository moved" redirect). I'll come back to that. Let me proceed with
+  the contracts reads (read-only) and the code swap.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== contracts package.json ===" && cat
+      packages/contracts/package.json…)  ⎿  === contracts package.json ===
+     {
+       "name": "@autogate/contracts",
+     … +222 lines (ctrl+o to expand)
+
+⏺ Now I have the contracts schemas. Key differences from my scaffold: their
+  runsQuerySchema is { repo?, status?, cursor?, limit? } and listRuns returns a
+  paginated { items, nextCursor? } (RunsListResponse), and they ship a Store
+  port + mocks. Let me read the port + mock so I wire to the real thing rather
+  than keep my stub. Also note: contracts uses zod v3.25 while my package is on
+  zod v4 — I'll need to align that.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== ports/index.ts (Store + DashboardApi area) ===" && cat
+      packages/contracts/src/ports/index.ts…)
+  ⎿  === ports/index.ts (Store + DashboardApi area) ===
+     import { z } from 'zod';
+     import type {
+     … +274 lines (ctrl+o to expand)
+
+⏺ Now I have the full contracts shape. Two important things shape the swap:
+
+  1. Contracts' Store is the system-of-record port — store.runs.list() returns
+  StoredRun ({ runId, pr, status, createdAt, updatedAt }), which has no
+  decision/riskScore/gate/checkSummary. Those RunSummary fields are derived by
+  the orchestrator (ticket 01). So my router needs a small StoredRun → 
+  RunSummary mapper with the derived fields defaulted (honestly marked as
+  ticket-01's job) rather than faked.
+  2. Contracts is on zod v3.25; I'll align @autogate/api to match so there
+  aren't two zod majors in the type graph.
+
+  mockStore is also a seedable factory now. Let me do the swap. First delete the
+  placeholders:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      rm packages/api/src/schemas.ts packages/api/src/store.ts…)
+  ⎿  deleted scaffold schemas.ts + store.ts
+
+⏺ Write(packages/api/src/context.ts)
+  ⎿  Added 3 lines, removed 3 lines
+      1 -import type { StorePort } from "./store";                       
+      1 +import type { Store } from "@autogate/contracts";               
+      2  
+      3  /**
+      4   * Per-request context. Holds the injected ports the procedures 
+         read from —
+     ...
+       7   * procedure changes.
+       8   */
+       9  export type Context = {
+      10 -  store: StorePort;                                            
+      10 +  store: Store;                                                
+      11  };
+      12  
+      13  /**
+     ...
+      16   * it per request (with request/response args we don't need yet
+          , hence ignored).
+      17   */
+      18  export const createContext =
+      19 -  (deps: { store: StorePort }) =>                              
+      19 +  (deps: { store: Store }) =>                                  
+      20    async (): Promise<Context> => ({
+      21      store: deps.store,
+      22    });
+
+⏺ Write(packages/api/src/routers/runs.ts)
+  ⎿  Added 41 lines, removed 3 lines
+       1 +import {                                                       
+       2 +  runsQuerySchema,                                             
+       3 +  type RunSummary,                                             
+       4 +  type StoredRun,                                              
+       5 +} from "@autogate/contracts";                                  
+       6  import { publicProcedure, router } from "../trpc";
+       2 -import { listRunsInputSchema, type RunSummary } from "../schema
+         -s";                                                            
+       7  
+       8  /**
+       9 + * Project a `StoredRun` (system-of-record row) into a `RunSumm
+         +ary` (dashboard                                                
+      10 + * view). The Store does not persist the derived fields — `deci
+         +sion`,                                                         
+      11 + * `riskScore`, and the gate/check tallies are computed by the 
+         +orchestrator                                                   
+      12 + * (ticket 01) from verdicts + check runs. Until that lands the
+         +y default here;                                                
+      13 + * the orchestrator will replace this projection with the real 
+         +aggregation.                                                   
+      14 + */                                                            
+      15 +const toRunSummary = (run: StoredRun): RunSummary => ({        
+      16 +  runId: run.runId,                                            
+      17 +  pr: {                                                        
+      18 +    number: run.pr.number,                                     
+      19 +    title: run.pr.title,                                       
+      20 +    repo: run.pr.repo,                                         
+      21 +    author: run.pr.author,                                     
+      22 +    url: run.pr.url,                                           
+      23 +    branch: run.pr.branch,                                     
+      24 +  },                                                           
+      25 +  status: run.status,                                          
+      26 +  decision: "pending",                                         
+      27 +  riskScore: 0,                                                
+      28 +  gate: { total: 0, passed: 0, failed: 0, pending: 0 },        
+      29 +  checkSummary: { pass: 0, warn: 0, fail: 0, pending: 0 },     
+      30 +  createdAt: run.createdAt,                                    
+      31 +  updatedAt: run.updatedAt,                                    
+      32 +});                                                            
+      33 +                                                               
+      34 +/**                                                            
+      35   * `runs` sub-router — the read slice of the `DashboardApi` (sp
+          ec §6).
+      36   * Scaffold ships `list`; `byId`, `override`, `rollback` land w
+          ith ticket 11/01.
+      37   */
+      38  export const runsRouter = router({
+      39    list: publicProcedure
+      10 -    .input(listRunsInputSchema)                                
+      11 -    .query(({ ctx, input }): Promise<RunSummary[]> => ctx.store
+         -.listRuns(input)),                                             
+      40 +    .input(runsQuerySchema)                                    
+      41 +    .query(async ({ ctx, input }): Promise<RunSummary[]> => {  
+      42 +      const stored = await ctx.store.runs.list({ repo: input.re
+         +po });                                                         
+      43 +      const filtered = input.status                            
+      44 +        ? stored.filter((run) => run.status === input.status)  
+      45 +        : stored;                                              
+      46 +      const limited =                                          
+      47 +        input.limit === undefined ? filtered : filtered.slice(0
+         +, input.limit);                                                
+      48 +      return limited.map(toRunSummary);                        
+      49 +    }),                                                        
+      50  });
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now update index.ts (drop the deleted re-exports) and package.json (add
+  contracts dep, align zod):
+
+⏺ Write(packages/api/src/index.ts)
+  ⎿  Added 2 lines, removed 7 lines
+       3   *
+       4   * Servers import `appRouter` + `createContext` to serve it (se
+          e `apps/api`).
+       5   * Clients import only `type AppRouter` for full end-to-end typ
+          e inference
+       6 - * (see `apps/web`). Scaffold schemas/store re-exported here wi
+         -ll be replaced by                                              
+       7 - * `@autogate/contracts` (ticket 00) once it lands.            
+       6 + * (see `apps/web`). Domain/dashboard schemas + the `Store` por
+         +t come from                                                    
+       7 + * `@autogate/contracts`; import those from there directly, not
+         + via this package.                                             
+       8   */
+       9  export { appRouter } from "./root";
+      10  export type { AppRouter } from "./root";
+     ...
+      13  export type { Context } from "./context";
+      14  
+      15  export { createCallerFactory } from "./trpc";
+      16 -                                                               
+      17 -export { mockStore } from "./store";                           
+      18 -export type { StorePort } from "./store";                      
+      19 -                                                               
+      20 -export * from "./schemas";                                     
+  ⎿  Found 3 new diagnostic issues in 2 files (ctrl+o to expand)
+
+⏺ Write(packages/api/package.json)
+  ⎿  Added 2 lines, removed 1 line
+      11      "check-types": "tsc --noEmit"
+      12    },
+      13    "dependencies": {
+      14 +    "@autogate/contracts": "workspace:*",                      
+      15      "@trpc/server": "^11.17.0",
+      15 -    "zod": "^4.4.3"                                            
+      16 +    "zod": "^3.25.76"                                          
+      17    },
+      18    "devDependencies": {
+      19      "@repo/eslint-config": "workspace:*",
+  ⎿  Found 2 new diagnostic issues in 2 files (ctrl+o to expand)
+
+⏺ Now wire apps/api to use contracts' seedable mockStore. Create the seed and
+  update the server + its package.json:
+
+⏺ Write(apps/api/src/seed.ts)
+  ⎿  Wrote 65 lines to apps/api/src/seed.ts
+       2 import type { StoreSeed, StoredRun } from "@autogate/contracts";
+       3 /**
+       4  * Demo fixture data for the in-memory `Store`. These are system
+       5  * `StoredRun`s (no derived decision/risk — the orchestrator com
+         putes those,
+       6  * ticket 01). Replaced by real runs once the orchestrator write
+       7  */o the Store.
+       8 const runs: StoredRun[] = [
+       9   {
+      10     runId: "run_01",
+     … +60 lines (ctrl+o to expand)
+
+⏺ Write(apps/api/src/index.ts)
+  ⎿  Added 10 lines, removed 5 lines
+      1  import { createHTTPServer } from "@trpc/server/adapters/standalo
+         ne";
+      2  import cors from "cors";
+      3 -import { appRouter, createContext, mockStore } from "@autogate/a
+        -pi";                                                            
+      3 +import { mockStore } from "@autogate/contracts";                
+      4 +import { appRouter, createContext } from "@autogate/api";       
+      5 +import { storeSeed } from "./seed";                             
+      6  
+      7  const PORT = Number(process.env.PORT ?? 3002);
+      8  const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3
+         000";
+     ...
+      11   * Orchestrator/API HTTP server. Serves the `@autogate/api` tRP
+          C router over a
+      12   * framework-free Node server (this is what replaced the planne
+          d Hono setup).
+      13   *
+      12 - * Dependency injection happens here at the boundary: the in-me
+         -mory `mockStore`                                               
+      13 - * is wired into the request context. Swapping in the real Post
+         -gres `Store`                                                   
+      14 - * (ticket 03) means changing this one argument — no router or 
+         -procedure edits.                                               
+      14 + * Dependency injection happens here at the boundary: the seede
+         +d in-memory                                                    
+      15 + * `mockStore` from `@autogate/contracts` is wired into the req
+         +uest context.                                                  
+      16 + * Swapping in the real Postgres `Store` (ticket 03) means chan
+         +ging this one                                                  
+      17 + * argument — no router or procedure edits.                    
+      18   */
+      19 +const store = mockStore({ seed: storeSeed });                  
+      20 +                                                               
+      21  const server = createHTTPServer({
+      22    router: appRouter,
+      18 -  createContext: createContext({ store: mockStore }),          
+      23 +  createContext: createContext({ store }),                     
+      24    middleware: cors({ origin: WEB_ORIGIN }),
+      25  });
+      26  
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Now add the contracts dep to apps/api's package.json and reinstall:
+
+⏺ Update(apps/api/package.json)
+  ⎿  Added 1 line
+      11    },
+      12    "dependencies": {
+      13      "@autogate/api": "workspace:*",
+      14 +    "@autogate/contracts": "workspace:*",                      
+      15      "@trpc/server": "^11.17.0",
+      16      "cors": "^2.8.6"
+      17    },
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm install 2>&1 | tail -6…)
+  ⎿  Progress: resolved 0, reused 1, downloaded 0, added 0
+     Packages: -1
+     -
+     … +5 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ check-types 5/5 — and apps/web resolves the contracts types transitively, so
+  no extra dep needed there. Now lint + a runtime check (boot, curl, and confirm
+  the dashboard still renders):
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== lint ===" && pnpm turbo lint 2>&1 | grep -E
+      "Tasks:|error|warning|FAIL" | tail -5…)
+  ⎿  === lint ===
+     @repo/ui:lint: > eslint . --max-warnings 0
+     @autogate/api:lint: > eslint . --max-warnings 0
+     … +16 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+⏺ Hold on — that output shows auto_merge/72/escalate, but my new toRunSummary
+  defaults all runs to decision: 'pending', riskScore: 0. That's the old 
+  scaffold data — a stale server from an earlier boot is still bound to :3002,
+  and my new pnpm start couldn't take the port. Let me check and kill it
+  properly, then re-verify against the new code.
+
+⏺ Bash(echo "=== new server log ===" && cat /tmp/ag2.log
+      echo "=== who is on :3002 ===" && lsof -ti tcp:3002 || echo "nobody")
+  ⎿  === new server log ===
+
+     > api@0.1.0 start /Users/tyron/Developer/auto-gate/apps/api
+     … +29 lines (ctrl+o to expand)
+
+⏺ Confirmed — stale PID 7205 held the port. Let me kill it by port and re-verify
+  against the actual new code:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      kill -9 $(lsof -ti tcp:3002) 2>/dev/null; sleep 1…)
+  ⎿  port now: free
+     bound ok
+     runs.list -> [('run_01', 'completed', 'pending', 0), ('run_02', 'compl
+     … +2 lines (ctrl+o to expand)
+
+⏺ New code confirmed: all runs now show decision='pending', riskScore=0 (the
+  honest placeholders) with their real statuses from the Store — exactly the
+  documented tradeoff (derived fields are ticket 01's job). Let me do a final
+  web build against the live API to verify the full chain post-swap, then
+  commit.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # boot API for the RSC prefetch during build…)
+  ⎿  api up
+     ✓ Compiled successfully in 867ms
+       Running TypeScript ...
+     … +7 lines (ctrl+o to expand)
+  ⎿  (timeout 3m)
+
+⏺ Full chain verified post-swap: check-types 5/5, lint 4/4, API serves
+  contracts-backed data, web builds + prerenders. Committing the swap:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  M  apps/api/package.json
+     M  apps/api/src/index.ts
+     A  apps/api/src/seed.ts
+     … +9 lines (ctrl+o to expand)
+
+⏺ Now push — let me fetch first in case more landed while we worked:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git fetch origin 2>&1 | tail -3…)
+  ⎿  Denied by auto mode classifier ∙ see 
+     https://code.claude.com/docs/s/claude-code-auto-mode
+
+⏺ The push was blocked by the permission classifier. Important clarification on
+  its reasoning: the earlier git remote set-url was denied, so I never actually
+  re-pointed the remote — origin still points at the original
+  isaacpovey/auto-gate (the same URL the first push succeeded to via GitHub's
+  redirect). But the classifier is now treating any push as risky, so it won't
+  go through under automatic permissions.
+
+  I'm not going to try to work around it. Here's exactly where things stand:
+
+  Committed locally (ready to push):
+  - 979f442 — Swap @autogate/api scaffold types for @autogate/contracts ✅
+  verified (check-types 5/5, lint, runtime, web build)
+
+  Blocked by permissions (need you):
+  1. The push — run it yourself in this session with the ! prefix:
+  ! git fetch origin && git push origin main
+  1. (fetch first in case more landed; if it rejects, tell me and I'll rebase
+  locally — that part isn't blocked.)
+  2. The remote URL update (auto-gate → autogate) — also blocked. GitHub is
+  currently redirecting the old URL so pushes still work, but to make it clean:
+  ! git remote set-url origin git@github.com:isaacpovey/autogate.git
+
+  If you'd rather I keep doing this directly, you can grant a Bash permission
+  rule for git push/git remote and I'll finish it — your call. Otherwise, run
+  the two ! commands above and you're done.
+
+  Want me to take a different route, or are you good to run those?
+
+✻ Churned for 6m 27s
+
+❯ Ok ive run both of those                                                      
+
+⏺ Let me verify everything landed and is in sync.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== remote ===" && git remote -v | head -1…)
+  ⎿  === remote ===
+     origin     git@github.com:isaacpovey/autogate.git (fetch)
+     === local vs origin/main ===
+     … +5 lines (ctrl+o to expand)
+
+⏺ All confirmed:
+
+  - Remote URL updated → git@github.com:isaacpovey/autogate.git ✅
+  - Push landed → local and origin/main are in sync (ahead 0, behind 0) ✅
+  - Both commits on origin/main: 2d70e72 (tRPC contract layer) and 979f442
+  (contracts swap), sitting cleanly on top of the other engineer's ad0d597
+  contracts work.
+
+  Everything's done and shipped. Final state of the tRPC work on main:
+  - packages/api (@autogate/api) — tRPC router consuming @autogate/contracts
+  types/schemas, exported AppRouter
+  - apps/api — standalone tRPC server seeding the contracts mockStore
+  - apps/web — modern @trpc/tanstack-react-query client, end-to-end typed
+
+  One thing worth flagging for whoever picks up ticket 01: runs.list currently
+  projects StoredRun → RunSummary with decision/riskScore/gate fields defaulted
+  to pending/0 (documented in routers/runs.ts), since the Store doesn't persist
+  those — they're the orchestrator's to compute. That's the natural seam for
+  ticket 01 to fill in.
+
+✻ Churned for 16s
+
+❯ Im going to be working on stream b not a. Can this run in parallel            
+
+⏺ Short answer: yes — that's exactly what the architecture is built for. Phase 0
+  (@autogate/contracts + mocks) has landed, and every Phase-1 ticket —
+  including all of stream B — builds against contracts + in-memory mocks, never
+  against another stream's half-finished adapter. So you don't wait on stream
+  A's real Postgres/GitHub/Qdrant work.
+
+  But there's one real coupling you should know about before you start, specific
+  to what I just built:
+
+  The tRPC appRouter is a shared contract that both streams touch. Your
+  dashboard (ticket 11, stream B) consumes it; stream A's ticket 01 backs it 
+  with real data. Right now appRouter only has health + runs.list. The rest of
+  the §6 surface — runs.byId, runs.override, runs.rollback, metrics, repos, the
+  live subscriptions — doesn't exist yet. So if you start the dashboard today,
+  you'd hit a wall on every surface except the run list, and you'd both be
+  editing packages/api/src/root.ts (collision risk).
+
+  The clean fix that fully decouples the streams: define the entire appRouter 
+  surface now, mock-backed (using the contracts mockStore + canned
+  detail/metrics). Then:
+  - You (stream B) build the whole dashboard against a complete, stable typed
+  contract — immediately, in parallel.
+  - Stream A (ticket 01) just swaps the mock data source for the real
+  Store/orchestrator — no procedure-shape changes, no dashboard changes.
+
+  That's the "build against the contract, not the adapter" principle applied to
+  the router itself — the procedure shapes are contract (lock them now), the
+  data source is the adapter (stream A's job).
+
+  Want me to flesh out the full appRouter (all §6 procedures, mock-backed) now
+  so you're unblocked? It's ~30 min of work and it's the thing standing between
+  you and a fully parallel start. If yes, I'd also suggest you branch rather
+  than committing the dashboard straight to main to keep the rebase churn down —
+  happy to set that up too.
+
+✻ Churned for 58s
+
+❯ yeah lets build out the mocked backend for now so stream b is unblocked       
+
+⏺ On it. The cleanest design that locks the contract and decouples the streams:
+  the router delegates to an injected DashboardApi provider (contracts already
+  defines that exact port type). I inject a rich mock provider now; stream A's
+  ticket 01 later injects a real one — the router shape never changes, so your
+  dashboard never breaks.
+
+  Let me build it. First, the mock DashboardApi with rich fixtures covering
+  every decision/status state:
+
+⏺ Write(apps/api/src/mock-dashboard.ts)  ⎿  Wrote 421 lines to apps/api/src/mock-dashboard.ts
+       1 import type {
+       2   DashboardApi,
+       3   RunDetail,
+       4   RunSummary,
+       5   RunsQuery,
+       6   TrustMetrics,
+       7   RepoSummary,
+       8 } from "@autogate/contracts";
+       9 
+      10 /**
+     … +446 lines (ctrl+o to expand)
+
+⏺ Now rewire the context to the DashboardApi port and make the router delegate
+  to it:
+
+⏺ Write(packages/api/src/context.ts)
+  ⎿  Added 12 lines, removed 11 lines
+       1 -import type { Store } from "@autogate/contracts";              
+       1 +import type { DashboardApi } from "@autogate/contracts";       
+       2  
+       3  /**
+       4 - * Per-request context. Holds the injected ports the procedures
+         - read from —                                                   
+       5 - * never concrete adapters. Swapping the in-memory mock for the
+         - real Postgres                                                 
+       6 - * `Store` (ticket 03) is a one-line change at the server bound
+         -ary; no                                                        
+       7 - * procedure changes.                                          
+       4 + * Per-request context. Holds the injected `DashboardApi` provi
+         +der the                                                        
+       5 + * procedures delegate to — never a concrete adapter. Swapping 
+         +the in-memory                                                  
+       6 + * mock for the real Store/orchestrator-backed provider (ticket
+         + 01) is a                                                      
+       7 + * one-line change at the server boundary; the router and its p
+         +rocedures —                                                    
+       8 + * and therefore the dashboard — never change.                 
+       9   */
+      10  export type Context = {
+      10 -  store: Store;                                                
+      11 +  dashboard: DashboardApi;                                     
+      12  };
+      13  
+      14  /**
+      14 - * `(dependencies) => (arguments)` — bind the ports once at boo
+         -t, then hand the                                               
+      15 - * returned function to a tRPC adapter as its `createContext`. 
+         -The adapter calls                                              
+      16 - * it per request (with request/response args we don't need yet
+         -, hence ignored).                                              
+      15 + * `(dependencies) => (arguments)` — bind the provider once at 
+         +boot, then hand                                                
+      16 + * the returned function to a tRPC adapter as its `createContex
+         +t`. The adapter                                                
+      17 + * calls it per request (with request/response args we don't ne
+         +ed yet).                                                       
+      18   */
+      19  export const createContext =
+      19 -  (deps: { store: Store }) =>                                  
+      20 +  (deps: { dashboard: DashboardApi }) =>                       
+      21    async (): Promise<Context> => ({
+      21 -    store: deps.store,                                         
+      22 +    dashboard: deps.dashboard,                                 
+      23    });
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ The .map(...) on run_02's checks widened the literal types. Let me inline
+  layer/durationMs directly instead:
+
+⏺ Update(apps/api/src/mock-dashboard.ts)
+  ⎿  Added 5 lines, removed 1 line
+      120              evidence: "rotateToken() returns before calling re
+           voke(prev)",
+      121            },
+      122          ],
+      123 +        layer: "ai",                                          
+      124 +        durationMs: 2600,                                     
+      125        },
+      126        {
+      127          sourceId: "architecture",
+     ...
+      137              location: { file: "src/auth/session.ts", line: 88 
+           },
+      138            },
+      139          ],
+      140 +        layer: "ai",                                          
+      141 +        durationMs: 2600,                                     
+      142        },
+      139 -    ].map((c) => ({ ...c, layer: "ai" as const, durationMs: 26
+          -00 })),                                                       
+      143 +    ],                                                        
+      144      decision: {
+      145        outcome: "escalate",
+      146        riskScore: 72,
+  ⎿  Found 3 new diagnostic issues in 3 files (ctrl+o to expand)
+
+⏺ mock-dashboard.ts is clean now. Now the router — delegate everything to
+  ctx.dashboard:
+
+⏺ Write(packages/api/src/routers/runs.ts)
+  ⎿  Added 25 lines, removed 41 lines
+       1 -import {                                                       
+       2 -  runsQuerySchema,                                             
+       3 -  type RunSummary,                                             
+       4 -  type StoredRun,                                              
+       5 -} from "@autogate/contracts";                                  
+       1 +import { z } from "zod";                                       
+       2 +import { overrideRequestSchema, runsQuerySchema } from "@autoga
+         +te/contracts";                                                 
+       3  import { publicProcedure, router } from "../trpc";
+       4  
+       8 -/**                                                            
+       9 - * Project a `StoredRun` (system-of-record row) into a `RunSumm
+         -ary` (dashboard                                                
+      10 - * view). The Store does not persist the derived fields — `deci
+         -sion`,                                                         
+      11 - * `riskScore`, and the gate/check tallies are computed by the 
+         -orchestrator                                                   
+      12 - * (ticket 01) from verdicts + check runs. Until that lands the
+         -y default here;                                                
+      13 - * the orchestrator will replace this projection with the real 
+         -aggregation.                                                   
+      14 - */                                                            
+      15 -const toRunSummary = (run: StoredRun): RunSummary => ({        
+      16 -  runId: run.runId,                                            
+      17 -  pr: {                                                        
+      18 -    number: run.pr.number,                                     
+      19 -    title: run.pr.title,                                       
+      20 -    repo: run.pr.repo,                                         
+      21 -    author: run.pr.author,                                     
+      22 -    url: run.pr.url,                                           
+      23 -    branch: run.pr.branch,                                     
+      24 -  },                                                           
+      25 -  status: run.status,                                          
+      26 -  decision: "pending",                                         
+      27 -  riskScore: 0,                                                
+      28 -  gate: { total: 0, passed: 0, failed: 0, pending: 0 },        
+      29 -  checkSummary: { pass: 0, warn: 0, fail: 0, pending: 0 },     
+      30 -  createdAt: run.createdAt,                                    
+      31 -  updatedAt: run.updatedAt,                                    
+      32 -});                                                            
+       5 +const runIdInput = z.object({ runId: z.string() });            
+       6  
+       7  /**
+      35 - * `runs` sub-router — the read slice of the `DashboardApi` (sp
+         -ec §6).                                                        
+      36 - * Scaffold ships `list`; `byId`, `override`, `rollback` land w
+         -ith ticket 11/01.                                              
+       8 + * `runs` sub-router — the read/write slice of the `DashboardAp
+         +i` (spec §6).                                                  
+       9 + * Every procedure delegates to the injected `DashboardApi` pro
+         +vider, so the                                                  
+      10 + * shapes are locked while the data source (mock now, orchestra
+         +tor later) swaps                                               
+      11 + * underneath.                                                 
+      12   */
+      13  export const runsRouter = router({
+      14    list: publicProcedure
+      15      .input(runsQuerySchema)
+      41 -    .query(async ({ ctx, input }): Promise<RunSummary[]> => {  
+      42 -      const stored = await ctx.store.runs.list({ repo: input.re
+         -po });                                                         
+      43 -      const filtered = input.status                            
+      44 -        ? stored.filter((run) => run.status === input.status)  
+      45 -        : stored;                                              
+      46 -      const limited =                                          
+      47 -        input.limit === undefined ? filtered : filtered.slice(0
+         -, input.limit);                                                
+      48 -      return limited.map(toRunSummary);                        
+      49 -    }),                                                        
+      16 +    .query(({ ctx, input }) => ctx.dashboard.listRuns(input)), 
+      17 +                                                               
+      18 +  byId: publicProcedure                                        
+      19 +    .input(runIdInput)                                         
+      20 +    .query(({ ctx, input }) => ctx.dashboard.getRun(input)),   
+      21 +                                                               
+      22 +  override: publicProcedure                                    
+      23 +    .input(overrideRequestSchema.extend({ runId: z.string() }))
+      24 +    .mutation(({ ctx, input }) =>                              
+      25 +      ctx.dashboard.override({                                 
+      26 +        runId: input.runId,                                    
+      27 +        request: { action: input.action, reason: input.reason }
+         +,                                                              
+      28 +      }),                                                      
+      29 +    ),                                                         
+      30 +                                                               
+      31 +  rollback: publicProcedure                                    
+      32 +    .input(runIdInput)                                         
+      33 +    .mutation(({ ctx, input }) => ctx.dashboard.rollback(input)
+         +),                                                             
+      34  });
+
+⏺ Write(packages/api/src/root.ts)
+  ⎿  Added 11 lines
+       5   * The single typed contract between the orchestrator/API and t
+          he dashboard.
+       6   * The dashboard imports only the `AppRouter` *type* (below) an
+          d gets
+       7   * end-to-end inference; rename a field here and the client fai
+          ls to compile.
+       8 + *                                                             
+       9 + * Live SSE deltas (spec §6 `stream` / `runs.onUpdate`) are not
+         + yet implemented                                               
+      10 + * — they map to tRPC v11 SSE subscriptions and will be added w
+         +ithout changing                                                
+      11 + * any existing procedure. The dashboard builds all surfaces to
+         +day with these                                                 
+      12 + * queries + mutations (refetch/invalidate for freshness).     
+      13   */
+      14  export const appRouter = router({
+      15    /** Liveness probe — proves the transport end-to-end with no 
+          dependencies. */
+     ...
+      19    })),
+      20  
+      21    runs: runsRouter,
+      22 +                                                               
+      23 +  /** Trust metrics for the dashboard chart (agreement rate, es
+         +calation P/R). */                                              
+      24 +  metrics: publicProcedure.query(({ ctx }) => ctx.dashboard.met
+         +rics()),                                                       
+      25 +                                                               
+      26 +  /** Configured repos + which agents run on each. */          
+      27 +  repos: publicProcedure.query(({ ctx }) => ctx.dashboard.repos
+         +()),                                                           
+      28  });
+      29  
+      30  export type AppRouter = typeof appRouter;
+  ⎿  Found 2 new diagnostic issues in 2 files (ctrl+o to expand)
+
+⏺ Two things to fix. The runs-list needs .items now (paginated response), and
+  the overrideRequestSchema.extend() error looks like a two-zod-instances
+  problem. Let me check the installed zod versions:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== all zod versions in store ===" && find node_modules/.pnpm
+      -maxdepth 1 -name 'zod@*' -type d | sed 's|.*/||' | sort…)
+  ⎿  === all zod versions in store ===
+     zod@3.25.76
+     zod@4.4.3
+     … +8 lines (ctrl+o to expand)
+
+❯ And then once stream a lands, it will just basically be a single code line change right? Aslong as the contract is the same 
+
+⏺ Same version (3.25.76) for both, but the cross-package .extend() (mixing my
+  local z.string() into contracts' schema) trips TypeScript's structural check
+  on zod internals. The robust fix: don't compose across packages — build the
+  override input from local z only (the resulting string-literal unions still
+  match OverrideAction structurally). And fix the dashboard to read .items.
+
+⏺ Update(packages/api/src/routers/runs.ts)
+  ⎿  Added 10 lines, removed 1 line
+       1  import { z } from "zod";
+       2 -import { overrideRequestSchema, runsQuerySchema } from "@autoga
+         -te/contracts";                                                 
+       2 +import { runsQuerySchema } from "@autogate/contracts";         
+       3  import { publicProcedure, router } from "../trpc";
+       4  
+       5  const runIdInput = z.object({ runId: z.string() });
+       6  
+       7 +// Built from local zod (not composed from contracts' schema) t
+         +o keep a single                                                
+       8 +// zod identity in this package's type graph. The literal union
+         + still matches                                                 
+       9 +// the contract's `OverrideAction` structurally.               
+      10 +const overrideInput = z.object({                               
+      11 +  runId: z.string(),                                           
+      12 +  action: z.enum(["approve_merge", "block"]),                  
+      13 +  reason: z.string(),                                          
+      14 +});                                                            
+      15 +                                                               
+      16  /**
+      17   * `runs` sub-router — the read/write slice of the `DashboardAp
+          i` (spec §6).
+      18   * Every procedure delegates to the injected `DashboardApi` pro
+          vider, so the
+
+⏺ Update(packages/api/src/routers/runs.ts)
+  ⎿  Added 1 line, removed 1 line
+      29      .query(({ ctx, input }) => ctx.dashboard.getRun(input)),
+      30  
+      31    override: publicProcedure
+      32 -    .input(overrideRequestSchema.extend({ runId: z.string() }))
+      32 +    .input(overrideInput)                                      
+      33      .mutation(({ ctx, input }) =>
+      34        ctx.dashboard.override({
+      35          runId: input.runId,
+
+⏺ Now wire apps/api to the mock provider (replacing the store seed), and update
+  the dashboard to read .items:
+
+⏺ Write(apps/api/src/index.ts)
+  ⎿  Added 7 lines, removed 8 lines
+      1  import { createHTTPServer } from "@trpc/server/adapters/standalo
+         ne";
+      2  import cors from "cors";
+      3 -import { mockStore } from "@autogate/contracts";                
+      3  import { appRouter, createContext } from "@autogate/api";
+      5 -import { storeSeed } from "./seed";                             
+      4 +import { createMockDashboardApi } from "./mock-dashboard";      
+      5  
+      6  const PORT = Number(process.env.PORT ?? 3002);
+      7  const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3
+         000";
+     ...
+      10   * Orchestrator/API HTTP server. Serves the `@autogate/api` tRP
+          C router over a
+      11   * framework-free Node server (this is what replaced the planne
+          d Hono setup).
+      12   *
+      14 - * Dependency injection happens here at the boundary: the seede
+         -d in-memory                                                    
+      15 - * `mockStore` from `@autogate/contracts` is wired into the req
+         -uest context.                                                  
+      16 - * Swapping in the real Postgres `Store` (ticket 03) means chan
+         -ging this one                                                  
+      17 - * argument — no router or procedure edits.                    
+      13 + * Dependency injection happens here at the boundary: the in-me
+         +mory mock                                                      
+      14 + * `DashboardApi` is wired into the request context. When ticke
+         +t 01 lands the                                                 
+      15 + * real Store/orchestrator-backed provider, this single argumen
+         +t changes — no                                                 
+      16 + * router, procedure, or dashboard edits.                      
+      17   */
+      19 -const store = mockStore({ seed: storeSeed });                  
+      18 +const dashboard = createMockDashboardApi();                    
+      19  
+      20  const server = createHTTPServer({
+      21    router: appRouter,
+      23 -  createContext: createContext({ store }),                     
+      22 +  createContext: createContext({ dashboard }),                 
+      23    middleware: cors({ origin: WEB_ORIGIN }),
+      24  });
+      25  
+
+⏺ Bash(rm apps/api/src/seed.ts && echo "deleted unused seed.ts")
+  ⎿  deleted unused seed.ts
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(apps/web/app/_components/runs-list.tsx)
+  ⎿  Added 1 line, removed 1 line
+      14  export function RunsList() {
+      15    const trpc = useTRPC();
+      16    const { data: health } = useSuspenseQuery(trpc.health.queryOp
+          tions());
+      17 -  const { data: runs } = useSuspenseQuery(                     
+      17 +  const { data: runList } = useSuspenseQuery(                  
+      18      trpc.runs.list.queryOptions({ limit: 20 }),
+      19    );
+      20  
+
+⏺ Update(apps/web/app/_components/runs-list.tsx)
+  ⎿  Added 1 line, removed 1 line
+      25          <small>({health.time})</small>
+      26        </p>
+      27        <ul>
+      28 -        {runs.map((run) => (                                   
+      28 +        {runList.items.map((run) => (                          
+      29            <li key={run.runId}>
+      30              <code>{run.pr.repo}</code> #{run.pr.number} — {run.
+          pr.title} —{" "}
+      31              <strong>{run.decision}</strong> (risk {run.riskScor
+          e})
+⏺ Now verify everything — types, lint, and exercise the full procedure surface
+  (queries + mutations):
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== check-types ===" && pnpm turbo check-types 2>&1 | grep -E
+      "Tasks:|error TS|\.tsx?\(|Error" | tail -20…)
+  ⎿  === check-types ===
+      Tasks:    5 successful, 5 total
+     === lint ===
+     … +5 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ Types and lint pass. Now exercise the full surface — all queries and both
+  mutations — to confirm the mock backend behaves:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      kill -9 $(lsof -ti tcp:3002) 2>/dev/null; sleep 0.5…)
+  ⎿  api up
+     --- runs.list (all) ---
+     items: [('run_01', 'completed', 'auto_merge', 8), ('run_02', 'complete
+     … +18 lines (ctrl+o to expand)
+
+⏺ All five procedures plus both mutations work: varied run states,
+  RunsListResponse shape, full RunDetail with brief/findings/timeline, metrics,
+  repos, and the mutations correctly transition state (escalate→merged,
+  auto_merge→rolled_back). Quick web build to confirm the dashboard prerenders
+  against the new paginated shape, then I'll commit:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      kill -9 $(lsof -ti tcp:3002) 2>/dev/null; sleep 0.5…)
+  ⎿  ✓ Compiled successfully in 749ms
+       Running TypeScript ...
+       Finished TypeScript in 1052ms ...
+     … +5 lines (ctrl+o to expand)
+  ⎿  (timeout 3m)
+
+⏺ Web build failed at prerender — undefined.map in the page. Types pass and the
+  API works via curl, so it's a render-time data issue. Let me get the full
+  stack trace rather than guess:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      kill -9 $(lsof -ti tcp:3002) 2>/dev/null; sleep 0.5…)
+  ⎿  Error occurred prerendering page "/". Read more: https://nextjs.org/do
+     cs/messages/prerender-error
+     TypeError: Cannot read properties of undefined (reading 'map')
+     … +10 lines (ctrl+o to expand)
+  ⎿  (timeout 3m)
+
+⏺ Likely Next's build-time fetch/data cache serving the old array-shaped
+  response from the earlier successful build (so runList.items is undefined on a
+  cached array). Let me clear .next and rebuild:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      rm -rf apps/web/.next…)
+  ⎿  ✓ Compiled successfully in 765ms
+       Running TypeScript ...
+       Finished TypeScript in 1033ms ...
+     … +2 lines (ctrl+o to expand)
+  ⎿  (timeout 3m)
+
+⏺ Clearing .next fixed it — it was a stale build-cache of the old array shape,
+  not a code bug. Full build now prerenders cleanly. Everything's verified:
+  - check-types 5/5, lint 4/4
+  - All queries (runs.list, runs.byId, metrics, repos) + both mutations
+  (override, rollback) work and transition state correctly
+  - Web builds + prerenders against the new paginated shape
+
+  Let me update the docs to match the provider-injection design (this is exactly
+  what answers your question), then commit.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(docs/superpowers/specs/2026-06-13-autogate-design.md)
+  ⎿  Added 6 lines, removed 4 lines
+      125  
+      126  ## 6. DashboardApi surface
+      127  
+      128 -The DashboardApi is a **tRPC router** (`@autogate/api`), not R
+          -EST. It is the single typed contract for the orchestrator/API 
+          -↔ dashboard seam: the server serves `appRouter` over a framewo
+          -rk-free tRPC standalone adapter; the dashboard imports only th
+          -e `AppRouter` *type* and gets end-to-end inference (rename a p
+          -rocedure field → the dashboard fails to compile). The dashboar
+          -d consumes it via the modern `@trpc/tanstack-react-query` inte
+          -gration (typed `queryOptions` + native TanStack Query hooks). 
+          -Build against the in-memory store + mock context from day one.
+          - No auth for hackday.                                         
+      128 +The DashboardApi is a **tRPC router** (`@autogate/api`), not R
+          +EST. It is the single typed contract for the orchestrator/API 
+          +↔ dashboard seam: the server serves `appRouter` over a framewo
+          +rk-free tRPC standalone adapter; the dashboard imports only th
+          +e `AppRouter` *type* and gets end-to-end inference (rename a p
+          +rocedure field → the dashboard fails to compile). The dashboar
+          +d consumes it via the modern `@trpc/tanstack-react-query` inte
+          +gration (typed `queryOptions` + native TanStack Query hooks). 
+          +No auth for hackday.                                          
+      129  
+      130 +**The router delegates to an injected `DashboardApi` provider*
+          +* (the port in `@autogate/contracts`). The procedure *shapes* 
+          +are the contract and are fixed; only the provider swaps. A ric
+          +h in-memory mock provider (`apps/api/src/mock-dashboard.ts`) s
+          +hips now so the dashboard builds every surface in parallel; ti
+          +cket 01 injects the real Store/orchestrator-backed provider — 
+          +a one-line change at the server boundary, no router/procedure/
+          +dashboard edits.                                              
+      131 +                                                              
+      132  ```ts
+      133  appRouter = {
+      134    health:  query() → { status: 'ok'; time: string }           
+                          // liveness
+      135    runs: {
+      134 -    list:      query({ repo?, status?, limit })   → RunSummary
+          -[]              // (cursor pagination later)                  
+      136 +    list:      query({ repo?, status?, cursor?, limit? }) → Ru
+          +nsListResponse  // { items: RunSummary[], nextCursor? }       
+      137      byId:      query({ runId })                   → RunDetail
+      138      override:  mutation({ runId, action, reason }) → RunDetail
+                           // action: 'approve_merge' | 'block'
+      139      rollback:  mutation({ runId })                → RunDetail
+      138 -    onUpdate:  subscription({ runId })            → RunDetail 
+          -deltas (SSE)    // replaces GET /api/runs/:id/stream          
+      140    }
+      141    metrics: query()                                → TrustMetri
+           cs
+      142    repos:   query()                                → RepoSummar
+           y[]
+      142 -  stream:  subscription()                         → RunSummary
+          - deltas (SSE)   // replaces GET /api/stream                   
+      143  }
+      144  ```
+      145  
+      146 +**Not yet implemented — live SSE deltas:** the spec's `stream`
+          + (RunSummary deltas) and `runs.onUpdate` (RunDetail deltas) ma
+          +p to tRPC v11 SSE subscriptions. They'll be added without chan
+          +ging any existing procedure. Until then the dashboard stays fr
+          +esh via refetch/invalidation on the queries above.            
+      147 +                                                              
+      148  Inputs are Zod-validated; the SSE streams map to tRPC v11 SSE 
+           **subscriptions** (`httpSubscriptionLink`). All payload types 
+           below are unchanged from the REST design.
+      149  
+      150  ```ts
+
+⏺ Now ticket 01 (the "single line change" the user is asking about) and ticket
+  11:
+
+⏺ Update(tickets/01-orchestrator.md)
+  ⎿  Added 1 line, removed 1 line
+      25    4. Persist verdicts → `decide` → post status/brief via `VcsPr
+          ovider`.
+      26  - `decide({ verdicts, gate, policy }) => Decision`: aggregate `
+          riskContribution`, apply `riskEscalateThreshold`, `escalateOnDi
+          sagreement`, `alwaysEscalatePaths`.
+      27  - `buildBrief({ pr, verdicts }) => string`: the "what to look a
+          t and why" summary for escalations.
+      28 -- Back the `DashboardApi` tRPC procedures (`@autogate/api`, spe
+         -c §6) with the `Store` instead of the scaffold's in-memory mock
+         -: `runs.list`/`runs.byId`/`metrics`/`repos` queries, `runs.over
+         -ride`/`runs.rollback` mutations, `stream`/`runs.onUpdate` subsc
+         -riptions. Resolvers read ports from context — no provider logic
+         - in procedures.                                                
+      28 +- Implement the real `DashboardApi` provider (the port in `@aut
+         +ogate/contracts`) backed by the `Store` + orchestrator outputs,
+         + and inject it in `apps/api/src/index.ts` in place of `createMo
+         +ckDashboardApi()` — a **one-line swap**. The tRPC router (`@aut
+         +ogate/api`, spec §6) already delegates every procedure (`listRu
+         +ns`/`getRun`/`metrics`/`repos`/`override`/`rollback`) to the in
+         +jected provider, so no router, procedure, or dashboard changes.
+         + This is where the derived view fields (decision, riskScore, ga
+         +te/check tallies) get computed from verdicts + check runs. Then
+         + add the `stream`/`runs.onUpdate` SSE subscriptions (additive —
+         + no shape changes).                                            
+      29  
+      30  ## Definition of Done
+      31  - `pnpm turbo check-types` passes; no import of any adapter pac
+          kage (enforced by lint/review).
+
+⏺ Update(tickets/11-dashboard.md)
+  ⎿  Added 2 lines
+      14  ## Owns
+      15  `apps/web` (the scaffold's Next.js app) — App Router + Tailwind
+           + shadcn/ui. The tRPC + TanStack Query foundation is **already
+           scaffolded** (`apps/web/trpc/*`: query-client factory, `TRPCRe
+          actProvider`, RSC server proxy + `HydrateClient`, `useTRPC`), c
+          onsuming `@autogate/api`'s `AppRouter` type end-to-end via the 
+          modern `@trpc/tanstack-react-query` integration (`queryOptions`
+           + native TanStack Query hooks — no legacy `useQuery` hooks). B
+          uild new surfaces on that.
+      16  
+      17 +**The full DashboardApi surface is already live, mock-backed** 
+         +(`apps/api` + `apps/api/src/mock-dashboard.ts`): `runs.list` (p
+         +aginated, repo/status filters), `runs.byId` (full `RunDetail` w
+         +ith brief/findings/gateChecks/timeline), `runs.override` + `run
+         +s.rollback` mutations (mutate + return updated detail), `metric
+         +s`, `repos`. Fixtures cover every decision/status state (auto_m
+         +erge, escalate, pending, rolled_back, awaiting_checks, running)
+         +. Build all surfaces against this now; nothing changes when tic
+         +ket 01 swaps the real provider in. **Live SSE** (`stream`/`runs
+         +.onUpdate`) is not yet implemented — use query refetch/invalida
+         +tion for freshness for now.                                    
+      18 +                                                               
+      19  ## Surfaces
+      20  1. **Release stream (home):** live table across both repos — PR
+          , repo, risk, **gate status (Layer 1 GitHub checks incl. bugbot
+          )**, Layer-2 check chips, decision. Status includes `awaiting_c
+          hecks` (gate not yet green). Filters by repo/status via `runs.l
+          ist` input. Live via the `stream` subscription (tRPC SSE).
+      21  2. **Run detail:** decision + reasons + brief, the raw **`gateC
+          hecks`** (Layer 1 GitHub checks with conclusions/links), every 
+          Layer-2 `CheckResult`, monitoring panel. Query `runs.byId`; liv
+          e via the `runs.onUpdate` subscription.
+
+⏺ Let me also fix the now-stale note I left in ticket 00 (the scaffold copies it
+  referenced are deleted):
+
+⏺ Update(tickets/00-contracts.md)
+  ⎿  Added 1 line, removed 1 line
+      17  ## Deliverables
+      18  - Zod schemas + inferred TS types for: `Verdict`, `Finding`, `S
+          everity`, `VerdictStatus`, `RunContext`, `PullRequest`, `CheckS
+          ource`, `Policy`, `RepoConfig`.
+      19  - Port interfaces: `VcsProvider` (incl. `awaitAllChecks`, `list
+          CheckRuns`), `SandboxRunner`, `AgentSdk`, `MemoryClient`, `Stor
+          e`, `Queue`, `MonitoringClient`.
+      20 -- `DashboardApi` request/response schemas (`RunSummary`, `Check
+         -Result`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec
+         - §6. **Note:** the `DashboardApi` is now a **tRPC router** (`@a
+         -utogate/api`), not REST — these Zod schemas are consumed as the
+         - procedures' input/output types. `@autogate/api` currently ship
+         -s scaffold copies of `RunSummary` + the `runs.list` input (`pac
+         -kages/api/src/schemas.ts`, marked to delete) until this package
+         - lands and they import from `@autogate/contracts`.             
+      20 +- `DashboardApi` request/response schemas (`RunSummary`, `Check
+         +Result`, `RunDetail`, `TrustMetrics`, `RepoSummary`) — see spec
+         + §6. **Note:** the `DashboardApi` is exposed as a **tRPC router
+         +** (`@autogate/api`), not REST — these Zod schemas + the `Dashb
+         +oardApi`/`Store` ports are consumed directly by it (the tRPC ro
+         +uter delegates to an injected `DashboardApi` provider).        
+      21  - `packages/contracts/mocks/*` — an in-memory implementation of
+           every port (deterministic, seedable) so all Phase-1 packages b
+          uild without infra.
+      22  
+      23  ## Contract (authoritative source: spec §4–§6)
+
+⏺ Now commit the mocked backend:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  M  apps/api/src/index.ts
+     A  apps/api/src/mock-dashboard.ts
+     D  apps/api/src/seed.ts
+     … +10 lines (ctrl+o to expand)
+
+⏺ Committed as a028b30. Since the classifier blocks me from pushing, run this
+  when ready:
+  ! git fetch origin && git push origin main
+
+  ---
+  Now your question: "once stream A lands, it's basically a single line change, 
+  right? As long as the contract is the same."
+
+  Yes — and the "as long as the contract is the same" part is enforced by the 
+  compiler, not left to discipline. Here's the precise picture:
+
+  The literal one line — in apps/api/src/index.ts:
+  const dashboard = createMockDashboardApi();        // today
+  const dashboard = createRealDashboardApi({ store }); // ticket 01
+  That's it. The tRPC router, every procedure, the AppRouter type, and the
+  entire dashboard are untouched — they depend only on the DashboardApi
+  contract, never its implementation.
+
+  Why the contract can't silently drift: both the mock and the real provider are
+  typed as DashboardApi (the port from @autogate/contracts). If the real one's
+  method signatures or return shapes (RunSummary/RunDetail/…) diverge, it won't 
+  compile. So "as long as the contract is the same" isn't a hope — TypeScript
+  guarantees it. And if someone intends to change the contract, they change it
+  in @autogate/contracts and every consumer (router + dashboard) breaks loudly
+  at compile time. That's the whole point of the seam.
+
+  Two honest asterisks (so it's not a surprise later):
+  1. Derived fields. The mock fakes decision/riskScore/gate tallies in fixtures.
+  The real provider computes them from verdicts + check runs — but that logic
+  lives inside the provider, behind the same DashboardApi surface. Still no
+  router/dashboard change.
+  2. Live SSE (stream/runs.onUpdate) isn't in the contract yet. Adding it is
+  additive — new procedures + the real provider emitting deltas — not a change
+  to anything that exists. Stream B's query-based UI keeps working;
+  subscriptions layer on top.
+
+  So for everything that exists today: one line, compiler-guaranteed. You can
+  build the full dashboard against the mock now with zero rework when stream A
+  lands.
+
+✻ Crunched for 9m 52s
+❯ Ok next, for stream A i want us to build out a very strong goal file to solve 
+  stream a. Explore this web page - https://code.claude.com/docs/en/goal and    
+  understand what goal is then we can iterate together to come up with an       
+  extremely clear solid goal for claude to work against. But commit your        
+  changes first                                                                 
+
+⏺ Let me verify the working tree is clean (I committed a028b30) and explore the
+  goal docs in parallel.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== status ===" && git status --short…)
+  ⎿  === status ===
+     === last commit ===
+     a028b30 Build full mocked DashboardApi surface to unblock stream B
+     … +3 lines (ctrl+o to expand)
+
+⏺ Working tree is clean — your changes are committed in a028b30 (sitting on top
+  of your 0041016 "Ty - WIP"; both are local, unpushed). So we're good to move
+  on.
+
+  Now let me study the goal docs.
+
+⏺ Fetch(https://code.claude.com/docs/en/goal)
+  ⎿  Received 8.6KB (200 OK)
+
+⏺ Done — and I read the docs closely. Quick but important reframe first, because
+  it changes how we write this:
+
+  What /goal actually is (and isn't)
+
+  It's not a file — it's a session command: /goal <condition>. You give it one
+  completion condition (≤4,000 chars) and Claude keeps taking turns toward it
+  without you re-prompting. After every turn, a small fast model (Haiku by
+  default) checks whether the condition holds; "no" sends Claude back to work
+  with the reason as guidance, "yes" clears the goal.
+
+  The single most important mechanic for us: the evaluator only reads the 
+  conversation transcript. It cannot run commands or read files. So the
+  condition must be phrased as something Claude's own surfaced output proves.
+  "pnpm turbo check-types passes" works only because Claude runs it and the
+  output lands in the transcript for the evaluator to see. This shapes
+  everything we write.
+
+  A strong condition, per the docs, has three parts:
+  1. One measurable end state (a test result, exit code, file count, empty
+  queue)
+  2. A stated check — how Claude proves it ("X exits 0", "git status clean")
+  3. Constraints that must not change on the way there
+  …plus a bound like "or stop after N turns."
+
+  So when you say "goal file," what we're really building is a
+  tightly-engineered condition string. I suggest we draft and iterate it in a 
+  working file (e.g. docs/stream-a-goal.md), then feed the final text to /goal.
+  Good plan.
+
+  Before I draft — two forks that change everything
+
+  Stream A is 6 packages (01 orchestrator, 02 sandbox, 03 store-postgres, 04
+  vcs-github, 05 memory-qdrant, 06 infra), and the
+  evaluator-reads-transcript-only constraint plus the infra question genuinely
+  reshape the goal:
+
+⏺ User declined to answer questions
+  ⎿  · Stream A is 6 packages with real dependencies. How should the goal be 
+     scoped? (One goal, dependency-ordered (Recommended) / Sequenced per-package
+     goals / Orchestrator-core only first)
+     · What end state should the goal drive toward — what must be true and 
+     provable? (Mocks only — Phase 1 (Recommended) / Real adapters too — Phase 2
+     / Mocks now + stubbed real adapters)
+
+❯ Sorry its stream B for me not stream A. So lets recalibrate on that before    
+  continuing                                                                    
+
+⏺ Got it — recalibrating. You're on stream B, so the goal we're crafting should
+  target stream B's tickets (the agents/UI/evals stream), not stream A. Let me
+  make sure I've got the right surface before we draft:
+
+  Stream B = tickets 07–13:
+  - 07 agent-sdk + factory
+  - 08 agents (the 6 L2 agents)
+  - 09 Layer 1 gate (GitHub checks incl. bugbot)
+  - 10 monitoring-datadog (L3)
+  - 11 dashboard (apps/web)
+  - 12 evals harness + fixtures
+  - 13 cli
+
+  Two things I need from you to write a tight goal (and the /goal mechanics
+  force these — remember the evaluator only reads the transcript, so the end
+  state has to be something Claude proves in-conversation):
+
+  1. Is the goal for Claude to build stream B autonomously, or is it your 
+  north-star while you hand-build it? This matters because you mentioned you're
+  personally building the dashboard (that's why we mocked the backend). If
+  you're doing 11 (dashboard) by hand, should the goal exclude 11 and drive
+  Claude through the rest (07, 08, 09, 10, 12, 13)? Or cover all of B?
+  2. Target depth — mocks (Phase 1) or real infra (Phase 2)? Stream B mostly
+  builds against contracts + the AgentSdk/MonitoringClient mocks, which is fully
+  provable in-session. But 08 (real agents) needs the Claude Agent SDK + API
+  access, and 10 needs Datadog — if those creds aren't in the session, Claude
+  can only build them against mocks/canned responses. I'd recommend mocks-first,
+  provable in-session, with real wiring flagged for Phase 2.
+
+  Once you tell me those two, I'll draft the goal condition into
+  docs/stream-b-goal.md and we iterate.
+
+✻ Crunched for 43s
+
+❯ 1. Its a goal for claude to build stream B autonomously. 2. Lets just build   
+  up the ones that we can do right now. If 8 needs claude agent - just scaffold 
+  it out, and for 10 we can just push 10 out to the next session.               
+
+⏺ Locked in. Here's the recalibrated scope:
+
+  - In the goal (build now): 07 agent-sdk/factory, 08 agents (real declarations,
+  run against the mock AgentSdk — no live API), 09 Layer 1 gate (against the
+  VcsProvider mock), 12 evals, 13 cli (stream-A-dependent bits against mocks).
+  - Excluded: 10 monitoring-datadog (next session), and 11 dashboard — since
+  you're hand-building that, an autonomous goal must not touch apps/web or it'll
+  collide with your work. I'll make "don't touch apps/web" an explicit
+  constraint.
+
+  Let me read the actual tickets so the goal is grounded in their real
+  Definitions of Done rather than my assumptions.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      for t in 07-agent-sdk 08-agents 09-layer1-gate 12-evals 13-cli; do echo
+      "========== $t =========="; cat tickets/$t.md; done)
+  ⎿  ========== 07-agent-sdk ==========
+     ---
+     id: 07-agent-sdk
+     … +159 lines (ctrl+o to expand)
+
+⏺ Now I have the real DoDs, and they surface two important scoping nuances I'll
+  bake in:
+
+  1. The e2e eval tier (12) and the infra CLI commands (13) — ingest, db 
+  migrate, run enqueue — depend on the orchestrator/Store/Qdrant from Stream A,
+  which won't exist. So those must be scaffolded with a clear "pending Stream A"
+  state, not required to pass. The per-agent eval tier and agent run/agent 
+  eval/eval are fully provable now.
+  2. 08's verification (agent run/agent eval) depends on 12 + 13 existing →
+  dependency order is 07 → {12 runner, 13 commands} → 08, with 09 independent.
+
+  Let me draft the goal into a file:
+
+⏺ Write(docs/stream-b-goal.md)
+  ⎿  Wrote 84 lines to docs/stream-b-goal.md
+       2 # Stream B — `/goal` condition
+       3 A worked-up completion condition to drive an **autonomous** `/go
+       4 Autogate **Stream B** (tickets 07, 08, 09, 12, 13) against `@aut
+         ogate/contracts` +
+       5 its in-memory mocks. The human owns the dashboard (ticket 11) by
+       6 (monitoring) is deferred to a later session.
+       7 
+       9 ## How to use it
+      10 In a trusted workspace (and ideally with auto mode on so each tu
+         rn runs unattended):
+     … +142 lines (ctrl+o to expand)
+
+⏺ Drafted to docs/stream-b-goal.md. Let me verify the condition is actually
+  under the 4,000-char limit (I claimed ~3.1k):
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # Extract the fenced condition block (the second ```text block) and count
+      chars…)
+  ⎿  condition chars: 3777
+     limit: 4000  -> OK
+     first line: Build Autogate Stream B — tickets 07, 08, 09, 12, 13 — aga
+     inst @autoga
+
+⏺ Verified: 3,777 / 4,000 chars — fits, though there's only ~220 chars of
+  headroom if we add anything, so edits should trade in/out rather than pile on.
+
+  The draft is in docs/stream-b-goal.md. Here's what it does in one breath:
+  drives an autonomous /goal run to build 07 → {12,13} → 08 plus 09, against
+  contracts + mocks, with every DONE item phrased as a command-and-show-output
+  so the transcript-only evaluator can actually judge it, and hard constraints
+  that keep Claude out of apps/web, @autogate/contracts, and Stream A.
+
+  Three things I want your read on before we call it final — these are the real
+  judgment calls:
+
+  1. The honest weak spot: canned mock = evals test plumbing, not agent quality.
+  With 08 running against the mock AgentSdk (canned responses), pnpm agent eval
+  proves the wiring — schema-valid Verdict, toVerdict mapping, tool-allowlist
+  enforcement — but not whether the prompts are any good, because a canned
+  response ignores the prompt. That's consistent with "just scaffold 08," but it
+  means "all 6 agents pass evals" is a weaker claim than it sounds. Two ways to
+  sharpen it:
+  - (a) Make the mock seedable per-fixture (different fixture PR → different
+  canned verdict), so the evals at least verify the agent+fixture+scorer chain
+  end-to-end deterministically. (My recommendation — meaningful plumbing test, 
+  and the contracts mockAgent already takes a seed.)
+  - (b) Leave it as schema-validity only, and accept the eval is shallow until
+  the live SDK lands.
+
+  2. Scaffold vs. fully defer the Stream-A-dependent bits. I chose
+  scaffold-with-a-"pending Stream A" message for the e2e eval tier and the infra
+  CLI commands (ingest/db/enqueue). The alternative is to not build them at all
+  until Stream A lands. Scaffolding leaves clean seams for ticket 01/03/05;
+  deferring keeps the goal smaller. I lean scaffold — your call.
+
+  3. The turn bound (40). Five packages + six agent folders + an eval harness is
+  a lot of turns. 40 might cut it off mid-stream. Options: bump to ~60, or keep
+  40 as a "report progress and stop" checkpoint you re-issue. Bounds are just
+  safety valves, so I'd rather set it generous (~60).
+
+  My recommendation: 1(a) + scaffold + bound 60. Want me to apply those, or
+  adjust any of them? Once we settle, I'll finalize the condition (and trim to
+  stay under 4k).
+
+✻ Churned for 4m 1s
+
+❯ 1. We can come back to this one. And leave the evals to be kinda weak for     
+  now. so option b.                                                             
+  2. I think Fully defer the stream a dependant bits. Which do you reckon?      
+  3. Maybe we can just reduce scope of this to do half stream B, or a chunk of  
+  stream B initially                                                            
+
+⏺ Good calls. My take on your two questions:
+
+  #2 — agree, fully defer. A stub that prints "pending Stream A" is YAGNI code
+  that adds surface without value, and the seams Stream A needs are already
+  defined by the @autogate/contracts ports — Stream A doesn't need a pre-made
+  stub sitting in your packages. More importantly, an autonomous goal is more 
+  reliable when every DONE item is genuinely achievable and provable now;
+  "scaffold a thing that does nothing" is fuzzy for the evaluator to judge. So:
+  drop the e2e eval tier and the infra CLI commands entirely from this goal.
+
+  #3 — yes, and here's the cleanest chunk. The tightest vertical slice that's
+  cohesive and fully provable now is the agent spine:
+  - 07 agent-sdk + factory (the foundation)
+  - 08 the 6 agents (against the mock, shallow evals)
+  - 12 per-agent eval runner only
+  - 13 agent run / agent eval / eval only
+
+  That's one clean theme — "the L2 agent library plus the tooling to run and 
+  eval it" — and everything in it is achievable against mocks. I'd drop 09 
+  (layer1-gate) from this goal too: it's independent infra (GitHub-checks → gate
+  mapping) with no relationship to the agent spine, so it makes a perfect fast 
+  follow-up goal on its own rather than padding this one.
+
+  Let me rewrite the file to that reduced scope:
+
+⏺ Write(docs/stream-b-goal.md)
+  ⎿  Added 50 lines, removed 37 lines
+       1 -# Stream B — `/goal` condition                                 
+       1 +# Stream B (chunk 1) — `/goal` condition: the agent spine      
+       2  
+       3 -A worked-up completion condition to drive an **autonomous** `/g
+         -oal` run that builds                                           
+       4 -Autogate **Stream B** (tickets 07, 08, 09, 12, 13) against `@au
+         -togate/contracts` +                                            
+       5 -its in-memory mocks. The human owns the dashboard (ticket 11) b
+         -y hand; ticket 10                                              
+       6 -(monitoring) is deferred to a later session.                   
+       3 +A worked-up completion condition to drive an **autonomous** `/g
+         +oal` run that builds the                                       
+       4 +**agent spine of Autogate Stream B** — tickets `07`, `08`, and 
+         +the agent-facing slices of                                     
+       5 +`12` and `13` — against `@autogate/contracts` + its in-memory m
+         +ocks.                                                          
+       6  
+       7 +This is deliberately **one cohesive chunk**, not all of Stream 
+         +B: *"the Layer-2 agent                                         
+       8 +library plus the tooling to run and eval it."* The rest of Stre
+         +am B comes in later goals                                      
+       9 +(see [Follow-up goals](#follow-up-goals)).                     
+      10 +                                                               
+      11  ## How to use it
+      12  
+      10 -In a trusted workspace (and ideally with auto mode on so each t
+         -urn runs unattended):                                          
+      13 +In a trusted workspace (ideally with auto mode on so each turn 
+         +runs unattended):                                              
+      14  
+      15  ```text
+      16  /goal <paste the condition block below>
+      17  ```
+      18  
+      19  `/goal` re-runs Claude every turn until a fast model confirms t
+          he condition holds.
+      17 -**The evaluator only reads the conversation transcript — it can
+         -'t run commands or                                             
+      18 -read files.** That's why every DONE item below is phrased as *r
+         -un a command and show                                          
+      19 -its output*: the proof has to land in the transcript.          
+      20 +**The evaluator only reads the conversation transcript — it can
+         +'t run commands or read                                        
+      21 +files.** That's why every DONE item is phrased as *run a comman
+         +d and show its output*:                                        
+      22 +the proof has to land in the transcript.                       
+      23  
+      21 -The condition is ~3.1k chars (limit is 4,000). Tune the turn bo
+         -und (currently `40`)                                           
+      22 -to taste — it's a safety valve, not a target.                  
+      24 +Tune the turn bound (currently `40`) to taste — it's a safety v
+         +alve, not a target.                                            
+      25  
+      26  ## The goal condition (paste this)
+      27  
+      28  ```text
+      27 -Build Autogate Stream B — tickets 07, 08, 09, 12, 13 — against 
+         -@autogate/contracts and its in-memory mocks, with no live infra
+         -structure. Read each ticket in tickets/ for its authoritative D
+         -efinition of Done. The goal is met only when every item under D
+         -ONE is demonstrated in this conversation (the evaluator reads o
+         -nly what you surface, so run the commands and show their output
+         -).                                                             
+      29 +Build the Autogate Stream B agent spine — tickets 07, 08, and t
+         +he agent-facing slices of 12 and 13 — against @autogate/contrac
+         +ts and its in-memory mocks, with no live infrastructure. Read e
+         +ach ticket in tickets/ for its Definition of Done. The goal is 
+         +met only when every item under DONE is demonstrated in this con
+         +versation (the evaluator reads only what you surface, so run th
+         +e commands and show their output).                             
+      30  
+      29 -BUILD (dependency order: 07 first, then 12's per-agent runner a
+         -nd 13's agent commands, then 08; 09 is independent):           
+      31 +BUILD (dependency order: 07 first, then 12's per-agent runner a
+         +nd 13's agent commands, then 08):                              
+      32  - 07 packages/agent-sdk: the AgentSdk adapter + createAiAgent f
+          actory + toVerdict helpers (spec section 5). Verify via the can
+          ned-response AgentSdk mock, not the live SDK.
+      31 -- 12 packages/evals: the per-agent eval runner (loads agents/<i
+         -d>/evals/*.json, runs each agent against the mock AgentSdk, sco
+         -res status/risk-band/key findings, prints pass-rate). Also scaf
+         -fold the end-to-end runner, but it depends on the orchestrator 
+         -(Stream A, ticket 01) which is out of scope — do NOT require it
+         - to pass; have it report "pending: orchestrator not built".    
+      32 -- 13 packages/cli: agent run / agent eval / eval working agains
+         -t mocks. Scaffold ingest, db migrate, db seed, run enqueue (the
+         -y need Stream A adapters) so they print a clear "pending Stream
+         - A" message instead of erroring.                               
+      33 +- 12 packages/evals: ONLY the per-agent eval runner — load agen
+         +ts/<id>/evals/*.json, run each agent against the mock AgentSdk,
+         + score the result, print pass-rate. Evals are intentionally sha
+         +llow for now: assert the Verdict is schema-valid and well-forme
+         +d, NOT that the agent reasoned correctly. Do NOT build the end-
+         +to-end / orchestrator eval tier.                               
+      34 +- 13 packages/cli: ONLY these commands, wired as pnpm scripts —
+         + `agent run <id> --fixture <pr>`, `agent eval <id>`, `eval`. Do
+         + NOT build ingest, db migrate, db seed, or run enqueue.        
+      35  - 08 packages/agents/<id>: the 6 Layer-2 agents (semantic-revie
+          w, blast-radius, risk-scoring, pattern-compliance, security-rev
+          iew, architecture-review). Each is a self-contained folder (age
+          nt.ts + prompt + schema.ts + evals/*.json) assembled via the 07
+           factory. Author the real declarations but run them ONLY agains
+          t the mock AgentSdk (canned, deterministic responses) — never c
+          all the live Claude Agent SDK or any network API.
+      34 -- 09 packages/layer1-gate: gateFromChecks({ checks, required })
+         - => { allPassed, total, passed, failed, pending, raw } mapping 
+         -GitHub check runs (from the mock VcsProvider) per spec section 
+         -3/6; bugbot appears as a gate check.                           
+      36  
+      37  DONE (every item must be shown in this conversation):
+      37 -1. Each package above exists and meets its ticket's Definition 
+         -of Done.                                                       
+      38 +1. Packages 07, 08, 12, 13 exist and meet the reduced scope abo
+         +ve.                                                            
+      39  2. `pnpm turbo check-types` is run with 0 errors across all pac
+          kages — output shown.
+      40  3. `pnpm turbo lint` is run with 0 errors and 0 warnings — outp
+          ut shown.
+      41  4. `pnpm agent run <id> --fixture <pr>` prints a schema-valid V
+          erdict for at least one agent — output shown.
+      41 -5. `pnpm agent eval <id>` passes for ALL 6 agents — the passing
+         - per-agent summaries shown.                                    
+      42 -6. `pnpm eval` runs the per-agent tier headless with zero infra
+         - and prints its report — output shown (the e2e tier may report 
+         -pending).                                                      
+      43 -7. For 09: against the mock VcsProvider, an all-green case yiel
+         -ds allPassed:true, and a failing/pending case yields allPassed:
+         -false with the offending checks listed — both outputs shown.   
+      42 +5. `pnpm agent eval <id>` runs for ALL 6 agents and reports pas
+         +s (schema-valid output) — the per-agent summaries shown.       
+      43 +6. `pnpm eval` runs the per-agent tier headless with zero infra
+         + and prints a readable report — output shown.                  
+      44  
+      45  CONSTRAINTS (must stay true throughout):
+      46  - Do NOT modify packages/contracts (@autogate/contracts) — anot
+          her engineer owns it; import from it, never edit it.
+      47  - Do NOT modify apps/web (the dashboard) or change the @autogat
+          e/api router/contract shapes — a human is hand-building the das
+          hboard against them.
+      48  - Do NOT build or edit Stream A packages, and do NOT implement 
+          any real adapter; build only against @autogate/contracts + its 
+          in-memory mocks (mockAgent, mockVcs, mockMemory, mockStore, moc
+          kQueue, mockSandbox, mockMonitoring).
+      49 -- Out of scope — do not build: ticket 10 (monitoring-datadog) a
+         -nd ticket 11 (dashboard).                                      
+      49 +- Out of scope — do not build now: ticket 09 (layer1-gate), tic
+         +ket 10 (monitoring), ticket 11 (dashboard), the e2e/orchestrato
+         +r eval tier, and the CLI infra commands (ingest, db migrate, db
+         + seed, run enqueue). These come in later goals.                
+      50  - Functional style: (dependencies) => (arguments), destructured
+           objects, no mutation. No test framework. Targeted checks for c
+          ore behavior and contract boundaries, not exhaustive unit tests
+          .
+      51 -- After each package: run check-types and exercise the artifact
+         - (a tsx smoke or the eval) before starting the next.           
+      51 +- After each package: run check-types and exercise the artifact
+         + before starting the next.                                     
+      52  
+      53  Stop when every DONE item is demonstrated in this conversation,
+           or stop after 40 turns and report exactly what remains.
+      54  ```
+      55  
+      56  ## Why it's scoped this way
+      57  
+      58 +- **One cohesive vertical slice.** `07` (factory) is the founda
+         +tion; `08` (the agents) is                                     
+      59 +  the meat; the `12`/`13` slices exist only to *run and verify*
+         + the agents. Everything                                        
+      60 +  serves one theme, so the goal converges instead of sprawling.
+      61  - **Provable in-session.** Every DONE item is a command whose o
+          utput lands in the
+      59 -  transcript, because the `/goal` evaluator judges only what's 
+         -surfaced — it never                                            
+      60 -  runs anything itself.                                        
+      61 -- **Dependency order.** `07` (factory) unblocks everything; `08
+         -` agents are verified                                          
+      62 -  *through* `12`'s per-agent runner and `13`'s `agent run`/`age
+         -nt eval`, so those come                                        
+      63 -  before `08`. `09` (gate) stands alone against the `VcsProvide
+         -r` mock.                                                       
+      64 -- **What's deliberately *not* required to pass:**              
+      65 -  - The **e2e eval tier** (`12`) replays PRs through the orches
+         -trator — that's ticket                                         
+      66 -    `01` in **Stream A**, which won't exist. Scaffold it; repor
+         -t "pending".                                                   
+      67 -  - The **infra CLI commands** (`13`: `ingest`, `db migrate|see
+         -d`, `run enqueue`) need                                        
+      68 -    Qdrant / Postgres / the queue — all Stream A. Scaffold to a
+         - clear "pending" message.                                      
+      69 -  - **`08` runs against the mock AgentSdk only** (canned respon
+         -ses). No live Claude                                           
+      70 -    Agent SDK / network, so the run is deterministic and needs 
+         -no API credentials.                                            
+      62 +  transcript — the `/goal` evaluator judges only what's surface
+         +d, never running anything                                      
+      63 +  itself.                                                      
+      64 +- **Dependency order.** `07` unblocks everything; `08` agents a
+         +re verified *through*                                          
+      65 +  `12`'s per-agent runner and `13`'s `agent run`/`agent eval`, 
+         +so those come before `08`.                                     
+      66 +- **Evals are intentionally shallow (your call).** Running agai
+         +nst the canned mock                                            
+      67 +  `AgentSdk`, `pnpm agent eval` proves the *plumbing* — schema-
+         +valid `Verdict`, `toVerdict`                                   
+      68 +  mapping, tool-allowlist enforcement — not prompt quality (a c
+         +anned response ignores the                                     
+      69 +  prompt). We revisit eval depth once the live SDK is wired.   
+      70 +- **`08` runs against the mock only** (no live Claude Agent SDK
+         + / network), so the run is                                     
+      71 +  deterministic and needs no API credentials.                  
+      72  - **Collision-safe with your work.** The constraints forbid tou
+          ching `apps/web`,
+      73    `@autogate/contracts`, the `@autogate/api` contract shapes, a
+          nd any Stream A package —
+      74    so Claude's autonomous run can't trample the dashboard you're
+           building by hand.
+      75  
+      76 +## Follow-up goals                                             
+      77 +                                                               
+      78 +Each is a clean, independent chunk for a later `/goal`:        
+      79 +                                                               
+      80 +- **`09` layer1-gate** — `gateFromChecks` mapping GitHub check 
+         +runs (incl. bugbot) into the                                   
+      81 +  gate result, against the mock `VcsProvider`. Standalone; doab
+         +le now.                                                        
+      82 +- **`10` monitoring-datadog** — deferred to a later session.   
+      83 +- **e2e eval tier + CLI infra commands** (`ingest`, `db migrate
+         +|seed`, `run enqueue`) — need                                  
+      84 +  the orchestrator / Store / Qdrant from **Stream A**, so they 
+         +land once Stream A does.                                       
+      85 +- **Live agent depth** — re-wire `08`/`12` to the real Claude A
+         +gent SDK and deepen the evals                                  
+      86 +  from schema-validity to behavioural scoring.                 
+      87 +                                                               
+      88  ## Suggested working hygiene (optional, outside the condition)
+      89  
+      77 -Run it on a branch and commit after each package check-types + 
+         -is exercised, so the                                           
+      78 -history is one clean commit per ticket and easy to review:     
+      90 +Run it on a branch and commit after each package check-types + 
+         +is exercised, so the history                                   
+      91 +is one clean commit per ticket and easy to review:             
+      92  
+      93  ```text
+      81 -git switch -c stream-b                                         
+      94 +git switch -c stream-b-agents                                  
+      95  ```
+      96  
+      97  (Pushing is up to you — the session's permission rules may bloc
+          k an autonomous push.)
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      python3 - <<'PY'…)
+  ⎿  condition chars: 3429 -> OK
+
+⏺ Final scope locked. Condition is now 3,429 chars with comfortable headroom.
+
+  What the goal now covers (the agent spine):
+  - 07 agent-sdk + factory
+  - 08 the 6 L2 agents (real declarations, mock AgentSdk,
+  shallow/schema-validity evals per your call)
+  - 12 per-agent eval runner only
+  - 13 agent run / agent eval / eval only
+
+  Dropped to follow-up goals (documented in the file so they're not lost): 09
+  layer1-gate (standalone, doable now — great next goal), 10 monitoring (next
+  session), the e2e eval tier + CLI infra commands (land with Stream A), and
+  deepening evals once the live SDK is wired.
+
+  Three properties that make it solid:
+  1. Every DONE item is a command-and-show-output — provable to the
+  transcript-only evaluator.
+  2. Hard constraints keep Claude out of apps/web, @autogate/contracts, the
+  @autogate/api shapes, and all of Stream A — so it can't collide with your
+  hand-built dashboard.
+  3. One cohesive theme, so the run converges instead of sprawling.
+
+  It's all in docs/stream-b-goal.md — the paste-ready condition plus the
+  rationale and the follow-up backlog. When you want to kick it off: /goal  +
+  the condition block (ideally with auto mode on).
+
+  Want me to commit docs/stream-b-goal.md? And is there anything you'd tighten
+  before this is the version you run — or should we draft the 09 follow-up goal
+  now while it's fresh?
+
+✻ Cogitated for 1m 53s
+
+❯ Lets split it up into two goal files so once stream A lands i can just run    
+  that goal command too                                                         
+
+⏺ Good idea — pre-write the post-Stream-A goal now so it's ready to fire the
+  moment Stream A lands. I'll split into two clearly-named files: goal 1 = the
+  agent spine (run now), goal 2 = the Stream-A-dependent slices (run after
+  Stream A).
+
+  Let me create both and remove the combined file.
+
+⏺ Write(docs/stream-b-goal-1-agent-spine.md)
+  ⎿  Wrote 84 lines to docs/stream-b-goal-1-agent-spine.md
+       2 # Stream B — Goal 1: the agent spine (run now)
+       3 A worked-up completion condition to drive an **autonomous** `/go
+       4 **agent spine of Stream B** — tickets `07`, `08`, and the agent-
+         facing slices of `12` and
+       5 `13` — against `@autogate/contracts` + its in-memory mocks. No l
+       6 Stream A dependencies — fully runnable today.
+       7 
+       9 ([`stream-b-goal-2-post-stream-a.md`](./stream-b-goal-2-post-str
+         eam-a.md)), ready to run
+      10 the moment Stream A lands.
+     … +136 lines (ctrl+o to expand)
+
+⏺ Write(docs/stream-b-goal-2-post-stream-a.md)
+  ⎿  Wrote 65 lines to docs/stream-b-goal-2-post-stream-a.md
+         ream A lands)Goal 2: the Stream-A-dependent slices (run after St
+       2 
+       4 ([`stream-b-goal-1-agent-spine.md`](./stream-b-goal-1-agent-spin
+         e.md)) because it needs
+         nfrastructure CLInd-to-end eval tier** (ticket `12`) and the **i
+       6 commands** (ticket `13`). Pre-written so you can fire it the mom
+       7 ent Stream A is in.
+       8 ## Precondition
+      10 Run this **only after Stream A (tickets `01`–`06`) has landed**,
+          and with local infra up:
+     … +109 lines (ctrl+o to expand)
+
+⏺ Now remove the combined file and verify both conditions fit under 4,000 chars:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      rm -f docs/stream-b-goal.md…)
+  ⎿  === files ===
+     docs/stream-b-goal-1-agent-spine.md
+     docs/stream-b-goal-2-post-stream-a.md
+     … +3 lines (ctrl+o to expand)
+
+⏺ Done — split into two ready-to-run goal files:
+
+  File: docs/stream-b-goal-1-agent-spine.md
+  When to run: Now
+  Covers: 07 agent-sdk, 08 agents (mock, shallow evals), 12 per-agent runner, 13
+
+    agent run/eval
+  Condition size: 3,429 / 4,000
+  ────────────────────────────────────────
+  File: docs/stream-b-goal-2-post-stream-a.md
+  When to run: After Stream A lands
+  Covers: 12 e2e eval tier (needs orchestrator), 13 infra commands
+    db/ingest/enqueue (need Postgres/Qdrant)
+  Condition size: 3,142 / 4,000
+
+  Each has a paste-ready condition block, the rationale, and cross-links to the
+  other. Goal 2 carries an explicit precondition (Stream A 01–06 landed +
+  docker-compose infra up, with a docker-compose up -d clause so Claude brings
+  it up if needed) and a "reuse the adapters, don't reimplement" constraint so
+  it integrates rather than duplicates Stream A.
+
+  Still parked as smaller standalone follow-ups (not full files): 09 layer1-gate
+  (doable now), 10 monitoring (Datadog session), and deepening evals to the
+  live SDK — all noted in goal 1's "Other follow-up goals."
+
+  Want me to commit both goal files? (And if you'd like, I can write up the 09
+  now-goal as a third small file while it's fresh.)
+
+✻ Brewed for 2m 31s
+
+❯ lets commit both and any outstanding them ill kick the goal off in a new      
+  session                                                                       
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== status ===" && git status --short…)
+  ⎿  === status ===
+     ?? docs/stream-b-goal-1-agent-spine.md
+     ?? docs/stream-b-goal-2-post-stream-a.md
+     … +3 lines (ctrl+o to expand)
+
+⏺ Only the two goal files are outstanding. Committing them:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add docs/stream-b-goal-1-agent-spine.md
+      docs/stream-b-goal-2-post-stream-a.md…)
+  ⎿  === committed ===
+     ddf5d6a Add Stream B autonomous /goal conditions (agent spine + post-S
+     tream-A)
+     … +2 lines (ctrl+o to expand)
+
+⏺ Committed — ddf5d6a. Working tree is clean.
+
+  Before you start the new session, one thing to handle: you now have three 
+  unpushed commits on local main:
+  ddf5d6a  Add Stream B autonomous /goal conditions
+  a028b30  Build full mocked DashboardApi surface to unblock stream B
+  0041016  Ty - WIP
+  If the new session is a fresh checkout (or you want the goal files available
+  there), push them first — pushing is blocked for me by the permission
+  classifier, so run it yourself:
+  ! git fetch origin && git push origin main
+
+  Then to kick off the goal in the new session (ideally with auto mode on so
+  each turn runs unattended):
+  /goal <paste the condition block from docs/stream-b-goal-1-agent-spine.md>
+  Run it from a branch if you want clean per-ticket history (git switch -c 
+  stream-b-agents). Goal 2 sits ready for whenever Stream A lands.
+
+  That's everything wrapped up. Good luck with the run — ping me if you want the
+  09 layer1-gate goal written up too.
+
+✻ Cooked for 25s
+
+❯ Im running this one first right - stream-b-goal-1-agent-spine                 
+
+⏺ Yes — stream-b-goal-1-agent-spine.md first. That's the run-now one: it builds
+  the agent spine (07 agent-sdk → 08 agents → the 12/13 slices to run and eval
+  them) entirely against @autogate/contracts + mocks, so it needs no Stream A
+  and no infra.
+
+  stream-b-goal-2-post-stream-a.md is the one you hold until Stream A (01–06)
+  has landed — it depends on the orchestrator + Postgres/Qdrant.
+
+  To start it in the new session (auto mode on so turns run unattended), paste
+  the condition block from goal 1:
+  /goal Build the Autogate Stream B agent spine — tickets 07, 08, and the
+  agent-facing slices of 12 and 13 ...
+  (the full block is in docs/stream-b-goal-1-agent-spine.md under "The goal
+  condition (paste this)").
+
+  Two quick reminders so the run goes clean:
+  - Push first if the new session is a fresh checkout — your three commits
+  (incl. the goal files) are still local only.
+  - Consider a branch (git switch -c stream-b-agents) for clean per-ticket
+  history.
+
+  One heads-up: I see apps/api now has a smoke script / smoke.ts. Goal 1's
+  constraints tell the autonomous run not to touch apps/api (it's the
+  Stream-A-served tRPC server) or apps/web — so your work there won't collide
+  with the goal run. You're good to kick it off.
+
+✻ Sautéed for 8s
+
+※ recap: We brought tRPC into the repo as the typed contract and mocked out the DashboardApi so Stream B is unblocked, then wrote two autonomous /goal files for Stream B. Next: in a new session, run the goal in stream-b-goal-1-agent-spine.md (push your local commits first). (disable recaps in /config)
+
+❯ /usage 
+  ⎿  Settings dialog dismissed
