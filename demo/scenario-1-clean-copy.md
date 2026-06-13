@@ -7,3 +7,5 @@ Layer 2 agents pass → orchestrator decides **auto-merge**.
 This PR exists to exercise the live Layer 1 gate (ticket 14) and the
 GitHub App VcsProvider (ticket 04): listCheckRuns / awaitAllChecks resolve
 on the real gate.yml check runs.
+
+<!-- re-trigger gate for live webhook test -->
