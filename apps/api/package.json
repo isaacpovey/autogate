@@ -13,6 +13,8 @@
   "dependencies": {
     "@autogate/api": "workspace:*",
     "@autogate/contracts": "workspace:*",
+    "@autogate/sandbox": "workspace:*",
+    "@autogate/store-postgres": "workspace:*",
     "@trpc/server": "^11.17.0",
     "cors": "^2.8.6"
   },
