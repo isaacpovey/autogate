@@ -1,12 +1,12 @@
 ---
-id: 14-integration
+id: 15-integration
 title: Integration + demo
 stream: shared
-depends_on: [01,02,03,04,05,06,07,08,09,10,11,12,13]
+depends_on: [01,02,03,04,05,06,07,08,09,10,11,12,13,14]
 phase: 2
 ---
 
-# 14 — Integration + demo
+# 15 — Integration + demo
 
 ## Goal
 Swap mocks for real adapters, boot the whole system on EC2, run both demo repos end-to-end, and author the seeded PRs that drive the demo narrative.
@@ -14,7 +14,7 @@ Swap mocks for real adapters, boot the whole system on EC2, run both demo repos 
 ## Deliverables
 - Wire real adapters into the orchestrator (replace mocks): GitHub, Docker sandbox, Postgres, Qdrant, Datadog, Claude SDK.
 - Boot on a fresh EC2 box via `setup.sh`; confirm dashboard + workers healthy.
-- Register the GitHub App on both `askable-services` and `autogate`; **confirm both repos have GitHub checks + bugbot enabled** (the Layer 1 gate is only meaningful if they do).
+- Register the GitHub App on both `askable-services` and `autogate`; ensure the Layer 1 gate workflows (ticket 14) are installed and set as required checks on both (autogate fully; askable-services via the template), and bugbot enabled.
 - Author + open the **seeded demo PRs**:
   1. Clean copy tweak → all GitHub checks green → agents pass → **auto-merge**.
   2. Risky/high-blast-radius change → checks green → agents agree → merges with monitoring.

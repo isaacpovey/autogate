@@ -40,8 +40,9 @@ Full design context: [`docs/superpowers/specs/2026-06-13-autogate-design.md`](..
 | 09 | [Layer 1 gate — GitHub checks incl. bugbot](./09-layer1-gate.md) | B | 04 |
 | 10 | [monitoring-datadog (L3)](./10-monitoring-datadog.md) | B | 00 |
 | 11 | [dashboard (Next.js / apps/web)](./11-dashboard.md) | B | 00 |
-| 12 | [evals harness + fixtures (non-blocking)](./12-evals.md) | B | 00 |
+| 12 | [evals harness + fixtures](./12-evals.md) | B | 00 |
 | 13 | [cli](./13-cli.md) | B | 00 |
-| 14 | [integration + demo](./14-integration.md) | shared | all |
+| 14 | [Layer 1 gate workflows (GitHub Actions)](./14-gate-actions.md) *(phase 1)* | A | — |
+| 15 | [integration + demo](./15-integration.md) | shared | all |
 
 **Streams:** A = backplane/infra, B = agents/UI/evals. Within a stream, tickets are independent and can run concurrently as separate agents.

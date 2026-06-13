@@ -51,6 +51,8 @@ Cross-cutting:
 
 **Changes from v1:** Layer 1 is now "all existing GitHub checks (incl. bugbot) pass" — the trigger for Autogate — rather than us re-running tests in a sandbox. **Layer 3a (boot-app web/pen-test) is dropped.** External checks are folded into Layer 1.
 
+**Autogate builds the Layer 1 gate itself.** Rather than assume a repo has CI, we ship the GitHub Actions workflows that produce the gate checks (`check-types`, `lint`, `build`, plus bugbot wiring) — fully for the `autogate` repo (so dogfooding is self-contained) and as a reusable template for `askable-services`. See ticket 14. The orchestrator's `awaitAllChecks` reads the check runs these workflows produce.
+
 ## 4. Ports (interfaces in `contracts`)
 
 | Port | Key methods | Adapter now | Mock |
@@ -187,7 +189,7 @@ TypeScript monorepo **scaffolded via `create-turbo`** (pnpm workspaces + Turbore
 
 ## 11. Risks / open items
 
-- **Layer 1 depends on the target repo already having checks + bugbot configured** — confirm `askable-services` and `autogate` both have GitHub checks (and bugbot) enabled so the gate is meaningful.
+- **Layer 1 gate must be installed + required on both repos.** We build the workflows (ticket 14) so `autogate` is self-contained; for `askable-services` apply the template and confirm bugbot is enabled and the checks are marked required (else the gate is not meaningful).
 - **`awaitAllChecks` latency** — bugbot/CI can be slow; the gate must poll `check_suite` completion and handle long waits without blocking workers.
 - Qdrant ingestion time for a large repo; scope `ragInclude` tightly.
 - Datadog MCP availability in the runtime env (synthetic-feed mock keeps the demo deterministic).
