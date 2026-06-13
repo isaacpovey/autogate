@@ -1,0 +1,29 @@
+{
+  "name": "@autogate/agent-claude",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "live": "tsx run-live.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "@autogate/agent-sdk": "workspace:*",
+    "@autogate/agents": "workspace:*",
+    "@autogate/contracts": "workspace:*",
+    "@autogate/evals": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "tsx": "^4.20.6",
+    "typescript": "5.9.2"
+  }
+}
