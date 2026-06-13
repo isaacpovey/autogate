@@ -7,14 +7,14 @@
     "./orchestrator": "./src/orchestrator/index.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
     "dev:mock": "tsx watch src/mock-server.ts",
-    "start": "tsx src/index.ts",
-    "worker": "tsx src/worker.ts",
-    "seed-fixture": "tsx src/seed-fixture.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "worker": "tsx --env-file-if-exists=../../.env src/worker.ts",
+    "seed-fixture": "tsx --env-file-if-exists=../../.env src/seed-fixture.ts",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "smoke": "tsx smoke.ts"
+    "smoke": "tsx --env-file-if-exists=../../.env smoke.ts"
   },
   "dependencies": {
     "@autogate/api": "workspace:*",
