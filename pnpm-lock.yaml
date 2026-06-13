@@ -23,6 +23,9 @@ importers:
       '@autogate/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@trpc/server':
         specifier: ^11.17.0
         version: 11.17.0(typescript@5.9.2)
@@ -106,12 +109,15 @@ importers:
 
   packages/api:
     dependencies:
+      '@autogate/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@trpc/server':
         specifier: ^11.17.0
         version: 11.17.0(typescript@5.9.2)
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -1757,9 +1763,6 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -3447,5 +3450,3 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   zod@3.25.76: {}
-
-  zod@4.4.3: {}

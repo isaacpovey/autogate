@@ -1,4 +1,4 @@
-import type { StorePort } from "./store";
+import type { Store } from "@autogate/contracts";
 
 /**
  * Per-request context. Holds the injected ports the procedures read from —
@@ -7,7 +7,7 @@ import type { StorePort } from "./store";
  * procedure changes.
  */
 export type Context = {
-  store: StorePort;
+  store: Store;
 };
 
 /**
@@ -16,7 +16,7 @@ export type Context = {
  * it per request (with request/response args we don't need yet, hence ignored).
  */
 export const createContext =
-  (deps: { store: StorePort }) =>
+  (deps: { store: Store }) =>
   async (): Promise<Context> => ({
     store: deps.store,
   });
