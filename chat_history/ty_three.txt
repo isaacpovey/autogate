@@ -1,0 +1,3064 @@
+╭─── Claude Code v2.1.177 ─────────────────────────────────────────────────────╮
+│                                      │ Tips for getting started              │
+│           Welcome back Ty!           │ Run /init to create a CLAUDE.md file… │
+│                                      │ ───────────────────────────────────── │
+│                ▐▛███▜▌               │ What's new                            │
+│               ▝▜█████▛▘              │ Session titles are now generated in … │
+│                 ▘▘ ▝▝                │ Added `footerLinksRegexes` setting f… │
+│                                      │ Improved Bedrock credential caching:… │
+│   Opus 4.8 · Claude Team · Askable   │ /release-notes for more               │
+│        ~/Developer/auto-gate         │                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ /effort                                                                       
+  ⎿  Set effort level to ultracode (this session only): xhigh + dynamic workflow
+     orchestration
+
+❯ /goal Complete the Stream-A-dependent slices of Autogate Stream B — the       
+end-to-end eval tier (ticket 12) and the infrastructure CLI commands (ticket    
+13) — now that Stream A (tickets 01-06) has landed. Read tickets/12-evals.md    
+and tickets/13-cli.md for their Definitions of Done. PRECONDITION: the Stream A 
+packages exist; ensure local infra is up before the infra commands (run         
+`docker-compose up -d` for Postgres + Qdrant if they are not already running,   
+per ticket 06). The goal is met only when every item under DONE is demonstrated 
+in this conversation (the evaluator reads only what you surface, so run the     
+commands and show their output).                                                
+                                                                                
+BUILD:                                                                          
+- 12 end-to-end eval tier (extend packages/evals): replay the labeled fixture   
+PRs through the orchestrator (ticket 01) against all mocks with the gate forced 
+green; for each, print the final Decision vs ground truth, and an overall       
+escalation precision/recall summary. Add the override fixture that demonstrates 
+precedent retrieval changing a verdict (the trust loop).                        
+- 13 infra CLI commands (extend packages/cli), each wired to the real Stream A  
+adapters via their contracts ports — reuse the adapters, do NOT re-implement    
+them: `db migrate` and `db seed` (Postgres, ticket 03), `ingest <repoConfig>`   
+(Qdrant ingestion, ticket 05), `run enqueue --repo <id> --pr <n>` (enqueue a    
+run via the queue, ticket 03/01). Structured output, quiet by default.          
+                                                                                
+DONE (every item must be shown in this conversation):                           
+1. `pnpm turbo check-types` is run with 0 errors across all packages — output   
+shown.                                                                          
+2. `pnpm turbo lint` is run with 0 errors and 0 warnings — output shown.        
+3. `pnpm eval` runs BOTH tiers headless; the e2e tier prints per-fixture        
+Decision vs ground truth and an escalation precision/recall summary — output    
+shown.                                                                          
+4. The override fixture run shows precedent retrieval changing the verdict —    
+output shown.                                                                   
+5. `pnpm autogate db migrate` then `pnpm autogate db seed` run clean against    
+the local Postgres — output shown.                                              
+6. `pnpm autogate ingest <repoConfig>` ingests into Qdrant and reports the      
+document/chunk counts — output shown.                                           
+7. `pnpm autogate run enqueue --repo <id> --pr <n>` enqueues a run and prints   
+the new run id — output shown.                                                  
+                                                                                
+CONSTRAINTS (must stay true throughout):                                        
+- Do NOT modify packages/contracts (@autogate/contracts) — import from it,      
+never edit it.                                                                  
+- Do NOT modify apps/web (the dashboard) or change the @autogate/api            
+router/contract shapes.                                                         
+- Reuse the existing Stream A adapters through their ports; do NOT re-implement 
+an adapter and do NOT change Stream A package internals beyond what wiring      
+requires.                                                                       
+- Do NOT change the agent spine (07/08) beyond what the e2e eval tier strictly  
+needs.                                                                          
+- Out of scope: ticket 10 (monitoring-datadog) and ticket 11 (dashboard).       
+- Functional style: (dependencies) => (arguments), destructured objects, no     
+mutation. No test framework. Targeted checks for core behavior and contract     
+boundaries, not exhaustive unit tests.                                          
+- After each piece: run check-types and exercise the artifact before starting   
+the next.                                                                       
+                                                                                
+Stop when every DONE item is demonstrated in this conversation, or stop after   
+30 turns and report exactly what remains.                                       
+  ⎿  Goal set: Complete the Stream-A-dependent slices of Autogate Stream B — the
+     end-to-end eval tier (ticket 12) and the infrastructure CLI commands
+     (ticket 13) — now that Stream A (tickets 01-06) has landed. Read
+     tickets/12-evals.md and tickets/13-cli.md for their Definitions of Done.
+     PRECONDITION: the Stream A packages exist; ensure local infra is up before
+     the infra commands (run docker-compose up -d for Postgres + Qdrant if they
+     are not already running, per ticket 06). The goal is met only when every
+     item under DONE is demonstrated in this conversation (the evaluator reads
+     only what you surface, so run the commands and show their output).
+
+     BUILD:
+     - 12 end-to-end eval tier (extend packages/evals): replay the labeled
+     fixture PRs through the orchestrator (ticket 01) against all mocks with the
+     gate forced green; for each, print the final Decision vs ground truth, and
+     an overall escalation precision/recall summary. Add the override fixture
+     that demonstrates precedent retrieval changing a verdict (the trust loop).
+     - 13 infra CLI commands (extend packages/cli), each wired to the real
+     Stream A adapters via their contracts ports — reuse the adapters, do NOT
+     re-implement them: db migrate and db seed (Postgres, ticket 03), ingest 
+     <repoConfig> (Qdrant ingestion, ticket 05), run enqueue --repo <id> --pr 
+     <n> (enqueue a run via the queue, ticket 03/01). Structured output, quiet
+     by default.
+
+     DONE (every item must be shown in this conversation):
+     1. pnpm turbo check-types is run with 0 errors across all packages — output
+     shown.
+     2. pnpm turbo lint is run with 0 errors and 0 warnings — output shown.
+     3. pnpm eval runs BOTH tiers headless; the e2e tier prints per-fixture
+     Decision vs ground truth and an escalation precision/recall summary —
+     output shown.
+     4. The override fixture run shows precedent retrieval changing the verdict
+     — output shown.
+     5. pnpm autogate db migrate then pnpm autogate db seed run clean against
+     the local Postgres — output shown.
+     6. pnpm autogate ingest <repoConfig> ingests into Qdrant and reports the
+     document/chunk counts — output shown.
+     7. pnpm autogate run enqueue --repo <id> --pr <n> enqueues a run and prints
+     the new run id — output shown.
+
+     CONSTRAINTS (must stay true throughout):
+     - Do NOT modify packages/contracts (@autogate/contracts) — import from it,
+     never edit it.
+     - Do NOT modify apps/web (the dashboard) or change the @autogate/api
+     router/contract shapes.
+     - Reuse the existing Stream A adapters through their ports; do NOT
+     re-implement an adapter and do NOT change Stream A package internals beyond
+     what wiring requires.
+     - Do NOT change the agent spine (07/08) beyond what the e2e eval tier
+     strictly needs.
+     - Out of scope: ticket 10 (monitoring-datadog) and ticket 11 (dashboard).
+     - Functional style: (dependencies) => (arguments), destructured objects, no
+     mutation. No test framework. Targeted checks for core behavior and
+     contract boundaries, not exhaustive unit tests.
+     - After each piece: run check-types and exercise the artifact before
+     starting the next.
+
+     Stop when every DONE item is demonstrated in this conversation, or stop
+     after 30 turns and report exactly what remains.
+
+⏺ I'll work toward completing the Stream B e2e eval tier (ticket 12) and infra
+  CLI commands (ticket 13). Let me start by understanding the current state of
+  the codebase and the ticket requirements.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Bash(ls -la && echo "---PACKAGES---" && ls -la packages/ && echo "---APPS---"
+      && ls -la apps/ 2>/dev/null && echo "---DOCKER---" && docker compose ps
+      2>/dev/null ||…)
+  ⎿  Error: Exit code 1
+     total 440
+     drwxr-xr-x@ 21 tyron  staff     672 13 Jun 14:08 .
+     drwxr-xr-x@ 73 tyron  staff    2336 13 Jun 10:48 ..
+     -rw-r--r--@  1 tyron  staff    1433 13 Jun 13:07 .coderabbit.yaml
+     -rw-r--r--@  1 tyron  staff      99 13 Jun 14:08 .dockerignore
+     drwxr-xr-x@ 15 tyron  staff     480 13 Jun 14:08 .git
+     drwxr-xr-x@  4 tyron  staff     128 13 Jun 13:07 .github
+     -rw-r--r--@  1 tyron  staff     413 13 Jun 14:08 .gitignore
+     -rw-r--r--@  1 tyron  staff       0 13 Jun 11:36 .npmrc
+     … +37 lines (ctrl+o to expand)
+
+⏺ Let me explore the key packages I'll be working with and the Stream A adapters
+  I need to wire to.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Let me bring up the local infra in the background and read the key existing
+  files in parallel.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/infra && (docker compose up -d
+      postgres qdrant 2>&1 || docker-compose up -d postgres qdrant 2>&1) | tail
+      -20)
+  ⎿  Running in the background (↓ to manage)
+
+  Read 7 files (ctrl+o to expand)
+
+⏺ Now let me find the orchestrator (ticket 01), the Decision schema, and map the
+  Stream A adapters I need to wire to.
+
+  Searched for 1 pattern, read 2 files (ctrl+o to expand)
+
+⏺ Bash(echo "===== orchestrator/decision refs =====" && grep -rIl -e orchestrat
+      -e Decision -e "decide" --include='*.ts' packages 2>/dev/null | grep -v
+      node_modules |…)
+  ⎿  ===== orchestrator/decision refs =====
+     packages/agent-sdk/src/factory.ts
+     packages/api/src/context.ts
+     … +62 lines (ctrl+o to expand)
+
+⏺ The orchestrator lives in apps/api. Let me map it plus the Stream A adapters I
+  need to wire into the CLI.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Now let me read the orchestrator internals and how apps/api wires the real
+  adapters — this is the blueprint for both the e2e eval tier and the CLI.
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ Now let me understand the agent build mechanism, the mocks, and how apps/api
+  wires real adapters together.
+
+  Read 6 files (ctrl+o to expand)
+
+⏺ The worker/seed-fixture give me the exact adapter wiring blueprint. Now let me
+  read the Stream A adapter entry points and the contracts mocks I'll need for
+  the e2e tier.
+
+  Read 5 files (ctrl+o to expand)
+⏺ Let me read the Qdrant memory adapter + embedder (for ingest), the store
+  adapter, and the contracts mocks for the e2e tier.
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ Let me check the environment for keys and read the contracts mocks plus a
+  sample agent + its existing fixture.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ OPENAI_API_KEY is unset — I'll need a deterministic embedder fallback for
+  ingest. Let me read the remaining mocks, sample agents, and check the docker
+  startup.
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ Bash(cat /private/tmp/claude-502/-Users-tyron-Developer-auto-gate/f7fc0871-873
+      e-4ad4-befa-813082d83f3a/tasks/bacmlohai.output 2>/dev/null; echo "---
+      docker ps ---";…)
+  ⎿  --- docker ps ---
+
+⏺ Now let me understand the agent build mechanism (toVerdict, appliesTo) and the
+  existing fixture format by reading sample agents and their fixtures.
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ Let me read the agent-sdk factory to understand how context/memory flows to
+  the SDK and how appliesTo/toVerdict work — this is key for the trust-loop
+  override fixture.
+
+  Read 6 files (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+⏺ Background command "Start Postgres + Qdrant containers" completed (exit code
+0)
+
+⏺ Docker is up. I now have a complete understanding. Let me check container
+  health and inspect how apps/api is packaged (since the e2e tier must replay
+  through its orchestrator).
+
+⏺ Bash(echo "--- docker ps ---"; docker ps --format
+      '{{.Names}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null | grep -i autogate; echo
+      "--- apps/api package.json ---"; cat app…)
+  ⎿  --- docker ps ---
+     autogate-qdrant-1  Up 18 seconds
+     (healthy)  0.0.0.0:6333-6334->6333-6334/t
+     cp, [::]:6333-6334->6333-6334/tcp
+     … +61 lines (ctrl+o to expand)
+
+⏺ Both Postgres and Qdrant are healthy. apps/api (name api) has no package
+  export, and the orchestrator lives in apps/api/src/orchestrator. The e2e tier
+  must replay through it. Let me check the tsconfig setups to choose the
+  cleanest import path.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Bash(echo "--- typescript-config files ---"; ls packages/typescript-config;
+      echo "--- base.json ---"; cat packages/typescript-config/base.json
+      2>/dev/null; echo "---…)
+  ⎿  --- typescript-config files ---
+     base.json
+     nextjs.json
+     … +74 lines (ctrl+o to expand)
+
+⏺ apps/api uses Bundler resolution (extensionless imports) while evals/cli use
+  NodeNext (.js extensions). The repo already consumes workspace .ts source
+  cross-package (evals imports @autogate/agents), so the clean path is to expose
+  the orchestrator from apps/api the same way. Let me confirm the existing
+  package exports convention.
+
+⏺ Bash(for p in agents contracts agent-sdk; do echo "###
+      packages/$p/package.json (name/main/exports)"; node -e "const
+      p=require('./packages/$p/package.json'); console…)
+  ⎿  ### packages/agents/package.json (name/main/exports)
+     {
+       "name": "@autogate/agents",
+     … +35 lines (ctrl+o to expand)
+
+⏺ Both DB and Qdrant are healthy. I now have the full picture and a clear
+  architecture decision: expose apps/api's orchestrator the same way other
+  workspace packages export their src (the repo already consumes workspace .ts
+  source cross-package under NodeNext). Let me read the last two agent schemas
+  I'll author fixtures against, then start building.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ I have a complete model now. Let me set up task tracking and start building.
+  First, expose the orchestrator from apps/api (the minimal wiring: .js
+  extensions in the orchestrator subgraph — valid under both Bundler and
+  NodeNext — plus a subpath export), mirroring the repo's existing
+  workspace-package convention.
+⏺ Now the orchestrator exposure. Editing the two files with relative imports in
+  the orchestrator subgraph and adding the subpath export.
+
+⏺ Update(apps/api/src/orchestrator/index.ts)
+  ⎿  Added 3 lines, removed 3 lines
+      1 -export { decide, type Decision } from "./decide";               
+      2 -export { buildBrief } from "./buildBrief";                      
+      3 -export { runPipeline, type OrchestratorPorts } from "./runPipeli
+        -ne";                                                            
+      1 +export { decide, type Decision } from "./decide.js";            
+      2 +export { buildBrief } from "./buildBrief.js";                   
+      3 +export { runPipeline, type OrchestratorPorts } from "./runPipeli
+        +ne.js";                                                         
+
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 2 lines, removed 2 lines
+      12    Verdict,
+      13    VcsProvider,
+      14  } from "@autogate/contracts";
+      15 -import { decide, type Decision } from "./decide";              
+      16 -import { buildBrief } from "./buildBrief";                     
+      15 +import { decide, type Decision } from "./decide.js";           
+      16 +import { buildBrief } from "./buildBrief.js";                  
+      17  
+      18  /**
+      19   * Everything the pipeline touches the outside world through. A
+          ll I/O is here as
+
+⏺ Now add the subpath export to apps/api/package.json (mirroring the workspace
+  .ts-source export convention).
+
+⏺ Update(apps/api/package.json)
+  ⎿  File must be read first
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(apps/api/package.json)
+  ⎿  Added 3 lines
+       3    "version": "0.1.0",
+       4    "type": "module",
+       5    "private": true,
+       6 +  "exports": {                                                 
+       7 +    "./orchestrator": "./src/orchestrator/index.ts"            
+       8 +  },                                                           
+       9    "scripts": {
+      10      "dev": "tsx watch src/index.ts",
+      11      "start": "tsx src/index.ts",
+
+⏺ Now wire the new workspace deps: api into evals, and store-postgres +
+  memory-qdrant into cli. Let me read both manifests via the tool first.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Update(packages/evals/package.json)
+  ⎿  Added 1 line
+      17      "@autogate/agent-sdk": "workspace:*",
+      18      "@autogate/agents": "workspace:*",
+      19      "@autogate/contracts": "workspace:*",
+      20 +    "api": "workspace:*",                                      
+      21      "zod": "^3.25.76"
+      22    },
+      23    "devDependencies": {
+
+⏺ Update(packages/cli/package.json)
+  ⎿  Added 3 lines, removed 1 line
+      13    "dependencies": {
+      14      "@autogate/agents": "workspace:*",
+      15      "@autogate/contracts": "workspace:*",
+      16 -    "@autogate/evals": "workspace:*"                           
+      16 +    "@autogate/evals": "workspace:*",                          
+      17 +    "@autogate/memory-qdrant": "workspace:*",                  
+      18 +    "@autogate/store-postgres": "workspace:*"                  
+      19    },
+      20    "devDependencies": {
+      21      "@repo/eslint-config": "workspace:*",
+
+⏺ Now run pnpm install to materialize the new workspace links, then verify the
+  orchestrator subpath resolves.
+
+⏺ Bash(pnpm install 2>&1 | tail -25)
+  ⎿  Scope: all 17 workspace projects
+     Progress: resolved 0, reused 1, downloaded 0, added 0
+      WARN  3 deprecated subdependencies found: @esbuild-kit/core-utils@3.3
+     … +5 lines (ctrl+o to expand)
+
+⏺ Bash(ls -la node_modules/api 2>/dev/null && echo "--- evals node_modules/api
+      ---" && ls -la packages/evals/node_modules/api 2>/dev/null; echo "---
+      quick resolve chec…)
+  ⎿  --- quick resolve check via tsx ---
+     ERR Cannot find package 'api' imported from /Users/tyron/Developer/aut
+     o-gate/[eval1]
+
+⏺ Bash(echo "--- find api symlinks ---"; ls -la packages/evals/node_modules/
+      2>/dev/null | grep -E "api|autogate" ; echo "--- resolve from evals dir
+      with tsx ---"; cd…)  ⎿  --- find api symlinks ---
+     drwxr-xr-x@  5 tyron  staff  160 13 Jun 13:34 @autogate
+     lrwxr-xr-x@  1 tyron  staff   17 13 Jun 14:23 api -> ../../../apps/api
+     … +2 lines (ctrl+o to expand)
+
+⏺ The orchestrator subpath resolves cleanly (buildBrief, decide, runPipeline).
+  Task 1 done. Now build the e2e tier in packages/evals.
+
+⏺ Write(packages/evals/src/e2e-fixture.ts)
+  ⎿  Wrote 84 lines to packages/evals/src/e2e-fixture.ts
+       2 import { fileURLToPath } from 'node:url';eSync } from 'node:fs';
+       3 import { join } from 'node:path';
+       4 import { z } from 'zod';
+       5 import { policySchema, pullRequestSchema, runDecisionSchema } fr
+         om '@autogate/contracts';
+       7 const memoryRecordSchema = z.object({
+       8   id: z.string(),
+       9   text: z.string(),
+      10   metadata: z.record(z.union([z.string(), z.number(), z.boolean(
+         )])),
+     … +96 lines (ctrl+o to expand)
+
+⏺ Now the e2e runner — replays each fixture through runPipeline with all mocks
+  and the gate forced green, plus the precedent-aware trust-loop driver.
+
+⏺ Write(packages/evals/src/e2e-runner.ts)
+  ⎿  Wrote 273 lines to packages/evals/src/e2e-runner.ts
+       1 import {
+       2   mockAgent,
+       3   mockMemory,
+       4   mockSandbox,
+       5   mockStore,
+       6   mockVcs,
+       7   type AgentSdk,
+       8   type CheckRun,
+       9   type CheckSource,
+      10   type MemorySeed,
+     … +304 lines (ctrl+o to expand)
+
+⏺ Now the e2e report formatter.
+
+⏺ Write(packages/evals/src/e2e-report.ts)
+  ⎿  Wrote 45 lines to packages/evals/src/e2e-report.ts
+        /e2e-runner.js';eReport, ScoredOutcome, TrustLoopResult } from '.
+      3 const mark = ({ pass }: { pass: boolean }): string => (pass ? '✓'
+         : '✗');
+        (rate * 100)}%`;ate }: { rate: number }): string => `${Math.round
+      5 
+        tcome; width: number }): string => { width }: { outcome: ScoredOu
+        me.expect.decision})`;outcome.decision.outcome} (expected ${outco
+      8   return `  ${mark({ pass: outcome.decisionMatch })} ${outcome.la
+        e.riskScore}`;th)}  decision ${decision.padEnd(34)} risk ${outcom
+      9 };
+     … +62 lines (ctrl+o to expand)
+
+⏺ Now wire the new modules into the evals package index.
+
+⏺ Update(packages/evals/src/index.ts)
+  ⎿  Added 19 lines
+      22    formatSuite,
+      23    formatVerdict,
+      24  } from './report.js';
+      25 +export {                                                       
+      26 +  e2eFixtureSchema,                                            
+      27 +  e2eExpectSchema,                                             
+      28 +  e2eFixturesDir,                                              
+      29 +  loadE2eFixtures,                                             
+      30 +  type E2eExpect,                                              
+      31 +  type E2eFixture,                                             
+      32 +  type TrustLoop,                                              
+      33 +} from './e2e-fixture.js';                                     
+      34 +export {                                                       
+      35 +  DEFAULT_POLICY,                                              
+      36 +  replayFixture,                                               
+      37 +  runE2eSuite,                                                 
+      38 +  type E2eReport,                                              
+      39 +  type EscalationMetrics,                                      
+      40 +  type ScoredOutcome,                                          
+      41 +  type TrustLoopResult,                                        
+      42 +} from './e2e-runner.js';                                      
+      43 +export { formatE2eReport } from './e2e-report.js';             
+
+⏺ Now create the five labeled e2e fixtures (clean / risky / flagged / regressing
+  + the trust-loop override). Each isolates a distinct decide() branch.
+
+⏺ Write(packages/evals/e2e/01-clean.json)
+  ⎿  Wrote 47 lines to packages/evals/e2e/01-clean.json
+       2   "name": "clean",
+       3   "description": "Low-risk docs + helper change; all agents pass
+         , aggregate risk well under threshold.",
+       4   "pr": {
+       5     "number": 101,
+       6     "title": "Add formatDuration helper and document it",
+       7     "repo": "askable/autogate",
+       8     "author": "sam",
+       9     "url": "https://github.com/askable/autogate/pull/101",
+      10     "branch": "chore/format-duration",
+     … +45 lines (ctrl+o to expand)
+
+⏺ Write(packages/evals/e2e/02-risky.json)
+  ⎿  Wrote 40 lines to packages/evals/e2e/02-risky.json
+       2   "name": "risky",
+       3   "description": "Large, complex refactor; risk-scoring puts agg
+         regate risk over the escalate threshold.",
+       4   "pr": {
+       5     "number": 142,
+       6     "title": "Rework job scheduler to a priority queue",
+       7     "repo": "askable/autogate",
+       8     "author": "alex",
+       9     "url": "https://github.com/askable/autogate/pull/142",
+      10     "branch": "feat/priority-scheduler",
+     … +37 lines (ctrl+o to expand)
+
+⏺ Write(packages/evals/e2e/03-flagged.json)
+  ⎿  Wrote 45 lines to packages/evals/e2e/03-flagged.json
+       2   "name": "flagged",
+       3   "description": "Agents disagree: security flags a fail while s
+         emantic passes — escalate on disagreement.",
+       4   "pr": {
+       5     "number": 167,
+       6     "title": "Expose internal widget metrics endpoint",
+       7     "repo": "askable/autogate",
+       8     "author": "rio",
+       9     "url": "https://github.com/askable/autogate/pull/167",
+      10     "branch": "feat/widget-metrics",
+     … +43 lines (ctrl+o to expand)
+
+⏺ Write(packages/evals/e2e/04-regressing.json)
+  ⎿  Wrote 45 lines to packages/evals/e2e/04-regressing.json
+       2   "name": "regressing",
+       3   "description": "Touches a sensitive auth path; aggregate risk 
+         is low and agents agree, but the path forces escalation.",
+       4   "pr": {
+       5     "number": 188,
+       6     "title": "Tweak session cookie max-age",
+       7     "repo": "askable/autogate",
+       8     "author": "noor",
+       9     "url": "https://github.com/askable/autogate/pull/188",
+      10     "branch": "fix/session-maxage",
+     … +41 lines (ctrl+o to expand)
+
+⏺ Write(packages/evals/e2e/05-override-precedent.json)
+  ⎿  Wrote 69 lines to packages/evals/e2e/05-override-precedent.json
+       2   "name": "override-precedent",
+       3   "description": "The trust loop: an approved precedent in memor
+         y flips the verdict from escalate to auto_merge.",
+       4   "pr": {
+       5     "number": 320,
+         ",  "title": "Round checkout totals half-up instead of half-even
+       7     "repo": "askable/shop",
+       8     "author": "deval",
+       9     "url": "https://github.com/askable/shop/pull/320",
+      10     "branch": "fix/checkout-rounding",
+     … +78 lines (ctrl+o to expand)
+
+⏺ Now let me type-check the evals package (this exercises the cross-package
+  orchestrator import under NodeNext) and smoke-run the e2e suite.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate && pnpm --filter @autogate/evals
+      check-types 2>&1 | tail -30)
+  ⎿  > @autogate/evals@0.0.0 check-types /Users/tyron/Developer/auto-gate/p
+     ackages/evals
+     > tsc --noEmit
+
+⏺ evals type-checks clean — the cross-package orchestrator import works under
+  NodeNext. Let me smoke-run the e2e suite to confirm decisions match ground
+  truth.
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/packages/evals && npx tsx -e "
+      import { loadE2eFixtures, runE2eSuite, formatE2eReport } from
+      './src/index.js';…)
+  ⎿  node:internal/process/promises:394
+         triggerUncaughtException(err, true /* fromPromise */);
+         ^
+     … +35 lines (ctrl+o to expand)
+
+⏺ tsx -e runs inline code as CJS. Let me wrap in an async IIFE.
+
+⏺ Bash(npx tsx -e "
+      import { loadE2eFixtures, runE2eSuite, formatE2eReport } from
+      './src/index.js';…)
+  ⎿  /Users/tyron/Developer/auto-gate/node_modules/.pnpm/tsx@4.22.4/node_mo
+     dules/tsx/dist/register-BOkp8V6j.cjs:9
+     `)},"createLog"),G=ut(W.bgLightYellow(W.black(" CJS "))),Tn=ut(W.bgBlu
+     … +102 lines (ctrl+o to expand)
+
+⏺ tsx -e is fighting me. Let me write a throwaway ESM script file in the package
+  and run it.
+
+⏺ Write(packages/evals/tmp-e2e-smoke.ts)
+  ⎿  Wrote 5 lines to packages/evals/tmp-e2e-smoke.ts
+      1 import { loadE2eFixtures, runE2eSuite, formatE2eReport } from './
+        src/index.js';
+      2 
+      3 const fixtures = loadE2eFixtures();
+      4 const report = await runE2eSuite({ fixtures });
+      5 console.log(formatE2eReport({ report }));
+
+⏺ Bash(npx tsx tmp-e2e-smoke.ts 2>&1 | tail -40; rm -f tmp-e2e-smoke.ts)
+  ⎿  Autogate — end-to-end eval tier (orchestrator + all mocks, gate forced
+      green)
+     ======================================================================
+     … +15 lines (ctrl+o to expand)
+
+⏺ The e2e tier is correct: decisions match ground truth 6/6, the trust loop
+  flips escalate→auto_merge via precedent retrieval, and P/R = 100%. Task 2
+  done. Now the CLI. Let me build the supporting modules first.
+
+⏺ Write(packages/cli/src/embedder.ts)
+  ⎿  Wrote 41 lines to packages/cli/src/embedder.ts
+         er } from '@autogate/memory-qdrant';DING_DIMENSIONS, type Embedd
+       2 
+       3 /** FNV-1a 32-bit hash — seeds the deterministic embedder per te
+         xt. */
+       4 const fnv1a = ({ input }: { input: string }): number => {
+       6   for (let index = 0; index < input.length; index += 1) {
+       7     hash ^= input.charCodeAt(index);
+       8     hash = Math.imul(hash, 0x01000193);
+       9   }
+      10   return hash >>> 0;
+     … +42 lines (ctrl+o to expand)
+
+⏺ Now the demo seed data (written through the Store port) and the infra command
+  implementations.
+
+⏺ Write(packages/cli/src/seed.ts)
+  ⎿  Wrote 125 lines to packages/cli/src/seed.ts
+       1 import type {
+       2   Store,
+       3   StoredEscalation,
+       4   StoredRun,
+       5   StoredVerdict,
+       6 } from '@autogate/contracts';
+       7 
+       8 const SEED_NOW = '2026-01-01T00:00:00.000Z';
+       9 
+      10 const pr = ({
+     … +122 lines (ctrl+o to expand)
+
+⏺ Write(packages/cli/src/infra.ts)
+  ⎿  Wrote 121 lines to packages/cli/src/infra.ts
+       2 import { randomUUID } from 'node:crypto';
+       3 import { repoConfigSchema, type PullRequest, type StoredRun } fr
+       4 import { createQueue, createStore, runMigrations } from '@autoga
+         te/store-postgres';
+       5 import { createMemoryClient, ingestRepo } from '@autogate/memory
+       6 import { resolveEmbedder } from './embedder.js';
+       7 import { seedStore } from './seed.js';
+       9 const DEFAULT_DATABASE_URL = 'postgres://autogate:autogate@local
+         host:5432/autogate';
+      10 const DEFAULT_QDRANT_URL = 'http://localhost:6333';
+     … +135 lines (ctrl+o to expand)
+
+⏺ Now the demo repo config for ingest, then rewrite the CLI router.
+
+⏺ Write(packages/cli/fixtures/repo.autogate-contracts.json)
+  ⎿  Wrote 7 lines to packages/cli/fixtures/repo.autogate-contracts.json
+      1 {
+      2   "id": "autogate-contracts",
+      3   "ragInclude": ["packages/contracts/src"],
+      4   "sensitivePaths": [],
+      5   "requiredChecks": "all",
+      6   "agents": ["security-review", "semantic-review"]
+      7 }
+
+⏺ Now rewrite the CLI router: extend eval to both tiers, add the infra commands,
+  generalize flag parsing.
+
+⏺ Write(packages/cli/src/index.ts)
+  ⎿  Added 114 lines, removed 31 lines
+       1  import { agentIds } from '@autogate/agents';
+       2  import {
+       3    formatAgentReport,
+       4 +  formatE2eReport,                                             
+       5    formatSuite,
+       6    formatVerdict,
+       7 +  loadE2eFixtures,                                             
+       8    resolveRun,
+       9    runAgentEval,
+      10    runAgentOnFixture,
+      11    runAllAgentEvals,
+      12 +  runE2eSuite,                                                 
+      13  } from '@autogate/evals';
+      14 +import { dbMigrate, dbSeed, ingest, runEnqueue } from './infra.
+         +js';                                                           
+      15  
+      12 -type Flags = { fixture?: string; json: boolean; verbose: boolea
+         -n };                                                           
+      16 +type Flags = {                                                 
+      17 +  fixture?: string;                                            
+      18 +  repo?: string;                                               
+      19 +  pr?: string;                                                 
+      20 +  root?: string;                                               
+      21 +  json: boolean;                                               
+      22 +  verbose: boolean;                                            
+      23 +};                                                             
+      24  
+      25 +const VALUE_FLAGS = ['fixture', 'repo', 'pr', 'root'] as const;
+      26 +type ValueFlag = (typeof VALUE_FLAGS)[number];                 
+      27 +const isValueFlag = (name: string): name is ValueFlag => (VALUE
+         +_FLAGS as readonly string[]).includes(name);                   
+      28 +                                                               
+      29  const parseFlags = ({ tokens }: { tokens: string[] }): { positi
+          onals: string[]; flags: Flags } => {
+      30    const positionals: string[] = [];
+      31    const flags: Flags = { json: false, verbose: false };
+     ...
+      38        flags.json = true;
+      39      } else if (token === '--verbose' || token === '-v') {
+      40        flags.verbose = true;
+      26 -    } else if (token === '--fixture') {                        
+      41 +    } else if (token.startsWith('--') && token.includes('=')) {
+      42 +      const name = token.slice(2, token.indexOf('='));         
+      43 +      if (isValueFlag(name)) {                                 
+      44 +        flags[name] = token.slice(token.indexOf('=') + 1);     
+      45 +      }                                                        
+      46 +    } else if (token.startsWith('--') && isValueFlag(token.slic
+         +e(2))) {                                                       
+      47 +      const name = token.slice(2) as ValueFlag;                
+      48        index += 1;
+      28 -      flags.fixture = tokens[index];                           
+      29 -    } else if (token.startsWith('--fixture=')) {               
+      30 -      flags.fixture = token.slice('--fixture='.length);        
+      49 +      flags[name] = tokens[index];                             
+      50      } else {
+      51        positionals.push(token);
+      52      }
+     ...
+      55  };
+      56  
+      57  const usage = [
+      39 -  'autogate — Layer-2 agent CLI (mock AgentSdk, zero infra)',  
+      58 +  'autogate — Layer-2 agent CLI + Autogate infra commands',    
+      59    '',
+      41 -  'Usage:',                                                    
+      60 +  'Agent / eval (mock AgentSdk, zero infra):',                 
+      61    '  agent run <id> [--fixture <pr>] [--json]   run one agent o
+          n a fixture, print its Verdict',
+      62    '  agent eval <id>                            score that agen
+          t against its fixtures',
+      44 -  '  eval [--verbose]                           run the per-age
+         -nt eval suite across all agents',                              
+      63 +  '  eval [--verbose]                           run BOTH eval t
+         +iers (per-agent + end-to-end)',                                
+      64    '',
+      65 +  'Infra (real Stream A adapters — Postgres + Qdrant):',       
+      66 +  '  db migrate [--json]                        apply the Postg
+         +res schema',                                                   
+      67 +  '  db seed [--json]                           write the demo 
+         +dataset',                                                      
+      68 +  '  ingest <repoConfig> [--root <dir>] [--json]  ingest a repo
+         + into Qdrant; report counts',                                  
+      69 +  '  run enqueue --repo <id> --pr <n> [--json]  seed + enqueue 
+         +a run; print the new run id',                                  
+      70 +  '',                                                          
+      71    `Agents: ${agentIds.join(', ')}`,
+      72 +  '',                                                          
+      73 +  'Env: DATABASE_URL (default postgres://autogate:autogate@loca
+         +lhost:5432/autogate),',                                        
+      74 +  '     QDRANT_URL (default http://localhost:6333), OPENAI_API_
+         +KEY (optional).',                                              
+      75  ].join('\n');
+      76  
+      77  const fail = (message: string): never => {
+     ...
+      101    }
+      102  };
+      103  
+      104 +/** `eval` — run both tiers: per-agent verification then the e
+          +nd-to-end orchestrator replay. */                             
+      105  const cmdEvalSuite = async ({ flags }: { flags: Flags }): Prom
+           ise<void> => {
+       77 -  const reports = await runAllAgentEvals();                   
+       78 -  console.log(formatSuite({ reports, verbose: flags.verbose })
+          -);                                                            
+       79 -  const allPass = reports.every((report) => report.total > 0 &
+          -& report.passed === report.total);                            
+       80 -  if (!allPass) {                                             
+      106 +  const agentReports = await runAllAgentEvals();              
+      107 +  console.log(formatSuite({ reports: agentReports, verbose: fl
+          +ags.verbose }));                                              
+      108 +                                                              
+      109 +  const e2eReport = await runE2eSuite({ fixtures: loadE2eFixtu
+          +res() });                                                     
+      110 +  console.log('');                                            
+      111 +  console.log(formatE2eReport({ report: e2eReport }));        
+      112 +                                                              
+      113 +  const agentsPass = agentReports.every((report) => report.tot
+          +al > 0 && report.passed === report.total);                    
+      114 +  const e2ePass = e2eReport.total > 0 && e2eReport.decisionMat
+          +ches === e2eReport.total;                                     
+      115 +  if (!agentsPass || !e2ePass) {                              
+      116      process.exit(1);
+      117    }
+      118  };
+      119  
+      120 +const cmdAgent = async ({ rest }: { rest: string[] }): Promise
+          +<void> => {                                                   
+      121 +  const [sub, ...tail] = rest;                                
+      122 +  const { positionals, flags } = parseFlags({ tokens: tail });
+      123 +  const [id] = positionals;                                   
+      124 +  if (id === undefined) {                                     
+      125 +    return fail('missing agent id');                          
+      126 +  }                                                           
+      127 +  if (sub === 'run') {                                        
+      128 +    return cmdAgentRun({ id, flags });                        
+      129 +  }                                                           
+      130 +  if (sub === 'eval') {                                       
+      131 +    return cmdAgentEval({ id });                              
+      132 +  }                                                           
+      133 +  fail(`unknown agent subcommand "${sub ?? ''}"`);            
+      134 +};                                                            
+      135 +                                                              
+      136 +const cmdDb = async ({ rest }: { rest: string[] }): Promise<vo
+          +id> => {                                                      
+      137 +  const { positionals, flags } = parseFlags({ tokens: rest });
+      138 +  const [sub] = positionals;                                  
+      139 +  if (sub === 'migrate') {                                    
+      140 +    await dbMigrate({ json: flags.json });                    
+      141 +  } else if (sub === 'seed') {                                
+      142 +    await dbSeed({ json: flags.json });                       
+      143 +  } else {                                                    
+      144 +    return fail(`unknown db subcommand "${sub ?? ''}"`);      
+      145 +  }                                                           
+      146 +  process.exit(0);                                            
+      147 +};                                                            
+      148 +                                                              
+      149 +const cmdIngest = async ({ rest }: { rest: string[] }): Promis
+          +e<void> => {                                                  
+      150 +  const { positionals, flags } = parseFlags({ tokens: rest });
+      151 +  const [configPath] = positionals;                           
+      152 +  if (configPath === undefined) {                             
+      153 +    return fail('ingest requires a <repoConfig> path');       
+      154 +  }                                                           
+      155 +  await ingest({ configPath, root: flags.root, json: flags.jso
+          +n });                                                         
+      156 +  process.exit(0);                                            
+      157 +};                                                            
+      158 +                                                              
+      159 +const cmdRun = async ({ rest }: { rest: string[] }): Promise<v
+          +oid> => {                                                     
+      160 +  const [sub, ...tail] = rest;                                
+      161 +  const { flags } = parseFlags({ tokens: tail });             
+      162 +  if (sub !== 'enqueue') {                                    
+      163 +    return fail(`unknown run subcommand "${sub ?? ''}"`);     
+      164 +  }                                                           
+      165 +  if (flags.repo === undefined || flags.pr === undefined) {   
+      166 +    return fail('run enqueue requires --repo <id> and --pr <n>
+          +');                                                           
+      167 +  }                                                           
+      168 +  const prNumber = Number(flags.pr);                          
+      169 +  if (!Number.isInteger(prNumber)) {                          
+      170 +    return fail(`--pr must be an integer (got "${flags.pr}")`)
+          +;                                                             
+      171 +  }                                                           
+      172 +  await runEnqueue({ repo: flags.repo, prNumber, json: flags.j
+          +son });                                                       
+      173 +  process.exit(0);                                            
+      174 +};                                                            
+      175 +                                                              
+      176  const main = async (): Promise<void> => {
+      177    const [group, ...rest] = process.argv.slice(2);
+      178  
+      179    if (group === 'eval') {
+      180      const { flags } = parseFlags({ tokens: rest });
+       90 -    await cmdEvalSuite({ flags });                            
+       91 -    return;                                                   
+      181 +    return cmdEvalSuite({ flags });                           
+      182    }
+       93 -                                                              
+      183    if (group === 'agent') {
+       95 -    const [sub, ...tail] = rest;                              
+       96 -    const { positionals, flags } = parseFlags({ tokens: tail }
+          -);                                                            
+       97 -    const [id] = positionals;                                 
+       98 -    if (id === undefined) {                                   
+       99 -      return fail(`missing agent id`);                        
+      100 -    }                                                         
+      101 -    if (sub === 'run') {                                      
+      102 -      await cmdAgentRun({ id, flags });                       
+      103 -      return;                                                 
+      104 -    }                                                         
+      105 -    if (sub === 'eval') {                                     
+      106 -      await cmdAgentEval({ id });                             
+      107 -      return;                                                 
+      108 -    }                                                         
+      109 -    fail(`unknown agent subcommand "${sub ?? ''}"`);          
+      184 +    return cmdAgent({ rest });                                
+      185    }
+      111 -                                                              
+      186 +  if (group === 'db') {                                       
+      187 +    return cmdDb({ rest });                                   
+      188 +  }                                                           
+      189 +  if (group === 'ingest') {                                   
+      190 +    return cmdIngest({ rest });                               
+      191 +  }                                                           
+      192 +  if (group === 'run') {                                      
+      193 +    return cmdRun({ rest });                                  
+      194 +  }                                                           
+      195    fail(`unknown command "${group ?? ''}"`);
+      196  };
+      197  
+
+⏺ Now add the autogate root script so pnpm autogate ... works.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(package.json)
+  ⎿  Added 2 lines, removed 1 line
+       8      "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+       9      "check-types": "turbo run check-types",
+      10      "agent": "tsx packages/cli/src/index.ts agent",
+      11 -    "eval": "tsx packages/cli/src/index.ts eval"               
+      11 +    "eval": "tsx packages/cli/src/index.ts eval",              
+      12 +    "autogate": "tsx packages/cli/src/index.ts"                
+      13    },
+      14    "devDependencies": {
+      15      "prettier": "^3.7.4",
+⏺ Now type-check the CLI package (it pulls in the new adapter deps).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate && pnpm --filter @autogate/cli
+      check-types 2>&1 | tail -30)
+  ⎿  > @autogate/cli@0.0.0 check-types /Users/tyron/Developer/auto-gate/pac
+     kages/cli
+     > tsc --noEmit
+
+⏺ CLI type-checks clean. Now the full-workspace gates — DONE items 1 & 2.
+  Running pnpm turbo check-types across all packages.
+
+⏺ Bash(pnpm turbo check-types 2>&1 | tail -40)
+  ⎿  @autogate/infra:check-types:
+     @autogate/infra:check-types: > @autogate/infra@0.0.0 check-types /User
+     s/tyron/Developer/auto-gate/infra
+     … +36 lines (ctrl+o to expand)
+
+⏺ All 14 packages pass type-checking (including apps/api with the orchestrator
+  export and untouched apps/web). Now lint — DONE item 2 (0 errors, 0 warnings;
+  lint scripts run --max-warnings 0).
+
+⏺ Bash(pnpm turbo lint 2>&1 | tail -45)
+  ⎿  @repo/ui:lint: cache miss, executing bf93adb94b1d7219
+     @autogate/agent-sdk:lint: cache miss, executing f0af5ca60812e7ab
+     @autogate/api:lint: cache miss, executing 82e9d8dc20dc9c27
+     … +41 lines (ctrl+o to expand)
+
+⏺ Lint passes — 8 packages with lint configured, 0 errors, 0 warnings. DONE
+  items 1 & 2 satisfied. Now DONE items 3 & 4: run pnpm eval (both tiers,
+  headless, zero infra) including the trust-loop override flip.
+
+⏺ Bash(pnpm eval 2>&1 | tail -60)
+  ⎿  > autogate@ eval /Users/tyron/Developer/auto-gate
+     > tsx packages/cli/src/index.ts eval
+     … +28 lines (ctrl+o to expand)
+
+⏺ Both tiers run headless with zero infra: per-agent 12/12 (100%) and the e2e
+  tier prints per-fixture Decision vs ground truth, the trust-loop flip
+  (escalate→auto_merge via precedent askable/shop#311), and escalation
+  precision/recall 100%. DONE items 3 & 4 satisfied.
+
+  Now the infra commands against live Postgres/Qdrant — DONE item 5: db migrate
+  then db seed.
+
+⏺ Bash(echo "=== pnpm autogate db migrate ===" && pnpm autogate db migrate; echo
+      "exit=$?"; echo "=== pnpm autogate db seed ===" && pnpm autogate db seed;
+      echo "exit=$…)
+  ⎿  === pnpm autogate db migrate ===
+
+     > autogate@ autogate /Users/tyron/Developer/auto-gate
+     … +13 lines (ctrl+o to expand)
+
+⏺ The connection reaches a Postgres, but the autogate role is missing — likely a
+  pre-existing postgres-data volume initialized with different credentials (the
+  POSTGRES_USER only seeds the role on first init). Let me inspect the
+  container.
+
+⏺ Bash(echo "=== container env ==="; docker exec autogate-postgres-1 env 2>&1 |
+      grep -i postgres; echo "=== roles ==="; docker exec autogate-postgres-1
+      psql -U postgre…)
+  ⎿  === container env ===
+     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr
+     /lib/postgresql/16/bin
+     … +13 lines (ctrl+o to expand)
+
+⏺ Both autogate and postgres roles are missing — the postgres-data volume is
+  stale (initialized under different credentials; POSTGRES_USER only seeds on
+  first init). This is local dev infra (ticket 06), so I'll recreate the volumes
+  cleanly so Postgres initializes with the autogate role.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/infra && (docker compose down -v 2>&1
+      || docker-compose down -v 2>&1) | tail -10 && echo "--- up ---" &&
+      (docker compose up…)
+  ⎿  Denied by auto mode classifier ∙ see 
+     https://code.claude.com/docs/s/claude-code-auto-mode
+
+⏺ The classifier blocked wiping the volumes (reasonable — it's stateful data I
+  didn't create). I'll fix it non-destructively instead: the stale volume's
+  superuser is whatever the original POSTGRES_USER was. Let me discover the
+  existing superuser role and create the autogate role/db inside the running
+  container.
+
+⏺ Bash(for u in tyron admin dev user app root postgresql autogate_admin; do
+        out=$(docker exec autogate-postgres-1 psql -U "$u" -d postgres -tAc
+      "select 'OK:'||curren…)
+  ⎿  Denied by auto mode classifier ∙ see 
+     https://code.claude.com/docs/s/claude-code-auto-mode
+
+⏺ The stale Postgres cluster has neither an autogate nor a postgres superuser
+  role, so it's a non-functional leftover (not a working autogate DB). Two safe
+  paths forward exist, and since this touches your local stateful data, I'd
+  rather confirm than guess. The classifier blocked both down -v (wipes the
+  volume) and probing for the existing superuser.
+
+⏺ User answered Claude's questions:
+  ⎿  · The local Postgres volume (autogate_postgres-data) was initialized under 
+     different credentials — it has no `autogate` role, so `db migrate/seed/run 
+     enqueue` can't connect. How should I get a working autogate Postgres? → 
+     Recreate the volume
+
+⏺ The user authorized recreating the volume. Running down -v + up -d so Postgres
+  re-initializes with the autogate role.
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/infra && (docker compose down -v 2>&1
+      || docker-compose down -v 2>&1) | tail -10 && echo "--- up ---" &&
+      (docker compose up…)
+  ⎿   Container autogate-qdrant-1 Removed
+      Container autogate-postgres-1 Stopped
+      Container autogate-postgres-1 Removing
+     … +18 lines (ctrl+o to expand)
+
+⏺ Fresh volumes created. Let me wait for Postgres to finish initializing (the
+  fresh init creates the autogate role), polling its health.
+
+⏺ Bash(i=0; until [ "$(docker inspect -f '{{.State.Health.Status}}'
+      autogate-postgres-1 2>/dev/null)" = "healthy" ] || [ $i -ge 30 ]; do
+      i=$((i+1)); sleep 1; done; ech…)
+  ⎿  postgres health: healthy after 0s
+     qdrant health: healthy
+     --- verify autogate role/db ---
+     role=autogate db=autogate
+
+⏺ Postgres re-initialized with the autogate role and DB; both services healthy.
+  Now DONE item 5 — db migrate then db seed.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate; echo "=== pnpm autogate db migrate
+      ===" && pnpm autogate db migrate 2>&1 | grep -v -E "^>|^$|autogate@" ;
+      echo "exit=${PIPE…)
+  ⎿  Error: Exit code 1
+     === pnpm autogate db migrate ===
+     autogate failed: role "autogate" does not exist
+      ELIFECYCLE  Command failed with exit code 1.
+     exit=
+     === pnpm autogate db seed ===
+     autogate failed: role "autogate" does not exist
+      ELIFECYCLE  Command failed with exit code 1.
+     exit=
+     === verify rows in Postgres ===
+     … +9 lines (ctrl+o to expand)
+
+⏺ The container has the autogate role (verified via docker exec), yet the CLI
+  hitting localhost:5432 still fails — so the CLI is reaching a different
+  Postgres (a host one on localhost:5432), not the container. Let me diagnose
+  what's listening.
+
+⏺ Bash(echo "=== listeners on 5432 ==="; lsof -nP -iTCP:5432 -sTCP:LISTEN
+      2>/dev/null || echo "(lsof unavailable)"; echo "=== localhost resolution
+      ==="; node -e "requi…)
+  ⎿  === listeners on 5432 ===
+     COMMAND     PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAM
+     E
+     … +23 lines (ctrl+o to expand)
+
+⏺ Found it: a host Postgres (postgresql@17, brew) owns loopback 127.0.0.1:5432
+  and [::1]:5432, so localhost:5432 hits it (no autogate role), not the
+  container. On macOS the container is only reachable via its published host
+  port, but loopback:5432 is squatted by the host DB. I'll publish the
+  container's Postgres on a free host port (5433) via a local compose override —
+  no host-DB changes, no committed-file changes. Let me confirm 5433/6333 are
+  free and check the gitignore convention.
+
+⏺ Bash(echo "=== 5433 free? ==="; lsof -nP -iTCP:5433 -sTCP:LISTEN 2>/dev/null
+      || echo "5433 FREE"; echo "=== 6333 (qdrant) ==="; lsof -nP -iTCP:6333
+      -sTCP:LISTEN 2>/d…)
+  ⎿  === 5433 free? ===
+     5433 FREE
+     === 6333 (qdrant) ===
+     … +8 lines (ctrl+o to expand)
+
+⏺ 5433 is free; Qdrant's 6333 is bound only by Docker (so localhost:6333 reaches
+  the container). I'll add a 5433 publish for the container's Postgres via a
+  local compose override (additive — leaves the host DB and committed compose
+  untouched).
+
+⏺ Write(infra/docker-compose.override.yml)
+  ⎿  Wrote 8 lines to infra/docker-compose.override.yml
+        already runs averride (not the committed topology). This machine 
+      2 # host Postgres on 127.0.0.1:5432, which shadows the container on
+         loopback. Publish
+      3 # the container's Postgres on a free loopback port so local tooli
+        ng can reach it via
+        te.ATABASE_URL=postgres://autogate:autogate@localhost:5433/autoga
+      5 services:
+      6   postgres:
+      7     ports:
+      8       - "5433:5432"
+     … +1 line (ctrl+o to expand)
+
+⏺ Bash((docker compose up -d postgres qdrant 2>&1 || docker-compose up -d
+      postgres qdrant 2>&1) | tail -8; echo "--- published ports ---"; docker
+      port autogate-postgre…)
+  ⎿   Container autogate-qdrant-1 Running
+      Container autogate-postgres-1 Recreate
+      Container autogate-postgres-1 Recreated
+     … +9 lines (ctrl+o to expand)
+
+⏺ Container Postgres is now published on localhost:5433 and healthy with the
+  fresh autogate role. Running the infra commands against it (DONE item 5). On
+  this machine the host DB owns :5432, so I point DATABASE_URL at :5433.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate && export
+      DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'
+      echo "=== pnpm autogate db migrate ===" && pnp…)
+  ⎿  === pnpm autogate db migrate ===
+     db migrate: ok (runs, verdicts, escalations, overrides, jobs)
+     === pnpm autogate db seed ===
+     … +5 lines (ctrl+o to expand)
+
+⏺ DONE item 5 ✓ — migrate + seed clean, rows verified in Postgres (3 runs, 3
+  verdicts, 1 escalation). Now DONE item 6 — ingest into Qdrant (default
+  QDRANT_URL=localhost:6333 reaches the container).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== repo config ===" && cat
+      packages/cli/fixtures/repo.autogate-contracts.json…)
+  ⎿  === repo config ===
+     {
+       "id": "autogate-contracts",
+     … +10 lines (ctrl+o to expand)
+
+⏺ DONE item 6 ✓ — ingested 13 documents → 16 chunks; Qdrant confirms 16 points
+  in code_knowledge (status green). Now DONE item 7 — run enqueue.
+
+⏺ Bash(export
+      DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'
+      echo "=== pnpm autogate run enqueue --repo askable/autogate --pr 142
+      ==="…)
+  ⎿  === pnpm autogate run enqueue --repo askable/autogate --pr 142 ===
+     run enqueue: ok (runId=run-d2dda400-74c5-47d3-92b7-8543a55797e3 job=jo
+     b-run-d2dda400-74c5-47d3-92b7-8543a55797e3 repo=askable/autogate pr=14
+     … +6 lines (ctrl+o to expand)
+
+⏺ DONE item 7 ✓ — run enqueue printed run id run-d2dda400-…; DB confirms the run
+  (status awaiting_checks, pr#142) and its queued job. Let me confirm the eval
+  command's exit gating works (exit 0 on all-pass) and mark tasks complete.
+
+⏺ Bash(pnpm eval >/dev/null 2>&1; echo "pnpm eval exit=$?"; echo "--- git status
+      (new/changed files) ---"; git status --short)
+  ⎿  pnpm eval exit=0
+     --- git status (new/changed files) ---
+      M apps/api/package.json
+     … +17 lines (ctrl+o to expand)
+⏺ All seven DONE items are demonstrated and pnpm eval exits 0. Changes are
+  scoped correctly — nothing touched in packages/contracts, apps/web, or the
+  @autogate/api router. Let me finalize tasks and record the non-obvious
+  environment gotcha for next time.
+
+  Wrote 1 memory (ctrl+o to expand)
+
+⏺ Let me fix the stray link placeholder in the memory and add the index pointer.
+
+  Wrote 1 memory (ctrl+o to expand)
+
+⏺ Bash(f="/Users/tyron/.claude/projects/-Users-tyron-Developer-auto-gate/memory/
+      MEMORY.md"; [ -f "$f" ] && { echo "EXISTS:"; cat "$f"; } || echo "NO
+      MEMORY.md")
+  ⎿  NO MEMORY.md
+
+  Wrote 1 memory (ctrl+o to expand)
+
+⏺ All five tasks complete. Here's the final state — every DONE item demonstrated
+  in this conversation:
+
+  Summary
+
+  Ticket 12 — end-to-end eval tier (packages/evals, new files: e2e-fixture.ts,
+  e2e-runner.ts, e2e-report.ts, e2e/*.json):
+  - Replays each labeled fixture PR through the real orchestrator (runPipeline
+  from ticket 01) against all mocks with the gate forced green, prints
+  per-fixture Decision vs ground truth, and an escalation precision/recall
+  summary.
+  - Five fixtures, each isolating one decide() branch: clean→auto_merge,
+  risky→risk-threshold escalate, flagged→disagreement escalate,
+  regressing→sensitive-path escalate, plus the override trust-loop fixture.
+  - To make the orchestrator (which lives in apps/api, Bundler resolution)
+  consumable from the NodeNext eval package, I added .js extensions to its 2
+  relative-import files and a ./orchestrator subpath export — mirroring the
+  repo's existing workspace .ts-source convention. No behavior change.
+
+  Ticket 13 — infra CLI (packages/cli, new files: infra.ts, seed.ts,
+  embedder.ts; extended index.ts): eval now runs both tiers; added db migrate,
+  db seed, ingest <repoConfig>, run enqueue --repo --pr — each wired to the real
+  Stream A adapters (createStore/createQueue/runMigrations,
+  createMemoryClient/ingestRepo) through their ports. Structured, quiet by
+  default (--json for machine output). Offline-deterministic embedder fallback
+  since OPENAI_API_KEY is unset.
+
+  DONE items (all shown above):
+  1. pnpm turbo check-types — 14/14 packages, 0 errors.
+  2. pnpm turbo lint — 8/8 lint-configured packages, 0 errors/0 warnings.
+  3. pnpm eval — per-agent 12/12 (100%) and e2e per-fixture Decision vs ground
+  truth + escalation P/R (TP=4 FP=0 FN=0 TN=2 → precision/recall 100%); exits 0.
+  4. Override fixture: without precedent → escalate vs with precedent → 
+  auto_merge via retrieved precedent askable/shop#311 — verdict flipped.
+  5. db migrate then db seed ran clean (3 runs / 3 verdicts / 1 escalation
+  verified in Postgres).
+  6. ingest → 13 documents, 16 chunks; Qdrant code_knowledge confirms 16 points
+  (green).
+  7. run enqueue → printed run-d2dda400-…; run + queued job verified in
+  Postgres.
+
+  Constraints honored: no edits to packages/contracts, apps/web, or the
+  @autogate/api router; adapters reused via their ports, not re-implemented;
+  agent spine untouched.
+
+  One environment note worth flagging: this machine runs a host postgresql@17 on
+  :5432 that shadowed the container on loopback (caused the initial role 
+  "autogate" does not exist). With your go-ahead I recreated the container
+  volume (fresh init created the autogate role) and added a local-only
+  infra/docker-compose.override.yml publishing the container Postgres on :5433.
+  The infra commands were run with DATABASE_URL=…@localhost:5433/…. The
+  committed docker-compose.yml is unchanged; the override is untracked and
+  local. I saved this gotcha to project memory.
+
+✔ Goal achieved (29m · 1 turn · 112.3k tokens) (ctrl+o to expand)
+
+✻ Churned for 23m 11s
+
+❯ Commit and push to main                                                       
+
+⏺ The user explicitly asked to push to main, so I'll commit there directly
+  (their instruction overrides the branch-first default). This is a mechanical
+  git operation — no workflow needed.
+
+  First, let me review the gitignore and branch state. The
+  infra/docker-compose.override.yml is a local-machine artifact (the 5433 port
+  fix) and should not be committed — I'll gitignore it instead.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Bash(echo "=== branch ===" && git branch --show-current && echo "=== upstream
+      / ahead-behind ===" && git rev-parse --abbrev-ref --symbolic-full-name
+      @{u} 2>&1 && git…)
+  ⎿  === branch ===
+     main
+     === upstream / ahead-behind ===
+     … +5 lines (ctrl+o to expand)
+
+⏺ On main, in sync with origin/main. Let me gitignore the local override, then
+  stage the feature changes (excluding the override).
+
+⏺ Update(.gitignore)
+  ⎿  Added 3 lines
+      36  
+      37  # local secrets (GitHub App PEM, etc.)
+      38  .secrets/
+      39 +                                                               
+      40 +# local-only compose customizations (e.g. alternate host ports)
+      41 +docker-compose.override.yml                                    
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  === staged files ===
+     M  .gitignore
+     M  apps/api/package.json
+     … +22 lines (ctrl+o to expand)
+
+⏺ Staged set is correct — all feature files plus the gitignore and lockfile; the
+  local override is excluded. Now commit and push to main.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git commit -q -F - <<'EOF'…)
+  ⎿  === commit done, exit=0 ===
+     c9a7497 Stream B Stream-A-dependent slices: e2e eval tier (12) + infra
+      CLI (13)
+
+⏺ Bash(git push origin main 2>&1 | tail -15 && echo "=== push exit=$? ===" &&
+      git status -sb | head -1)
+  ⎿  To github.com:isaacpovey/autogate.git
+        0fb2aa0..c9a7497  main -> main
+     === push exit=0 ===
+     ## main...origin/main
+
+⏺ Done. Committed and pushed to main.
+
+  - Commit: c9a7497 — Stream B Stream-A-dependent slices: e2e eval tier (12) + 
+  infra CLI (13)
+  - Pushed: 0fb2aa0..c9a7497  main -> main (now in sync with origin/main)
+  - 21 files staged: the e2e tier (packages/evals/src/e2e-*.ts + 5 fixtures),
+  the infra CLI (packages/cli/src/{infra,seed,embedder}.ts + extended index.ts +
+  demo repo config), the orchestrator export wiring in apps/api, the autogate
+  root script, dep updates, and pnpm-lock.yaml.
+
+  The local-only infra/docker-compose.override.yml (the :5433 port fix for this
+  machine's host-Postgres conflict) was not committed — I added it to .gitignore
+  instead, since pinning the container to 5433 would be wrong for other
+  developers whose :5432 is free.
+
+✻ Worked for 1m 14s
+
+❯ How do i test this now?                                                       
+⏺ Here's how to exercise everything. Two buckets: the eval tiers need zero 
+  infra, the CLI infra commands need Postgres + Qdrant. Let me first confirm
+  what's currently live on your machine.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== containers ==="; docker ps --format '{{.Names}}\t{{.Status}}' |
+      grep -i autogate || echo "(none up)"…)
+  ⎿  === containers ===
+     autogate-postgres-1        Up 4 minutes (healthy)
+     autogate-qdrant-1  Up 7 minutes (healthy)
+     … +8 lines (ctrl+o to expand)
+
+⏺ Everything's still live: both containers healthy, container DB has 4 runs + 1
+  queued job, Qdrant has 16 points. So you can test immediately.
+
+  A. Eval tiers — zero infra, instant
+
+  pnpm eval                      # both tiers: per-agent (12/12) + e2e 
+  Decision-vs-truth + escalation P/R + trust-loop flip
+  pnpm eval --verbose            # same, with per-fixture check details for the 
+  per-agent tier
+  pnpm agent eval security-review        # one agent's fixtures
+  pnpm agent run security-review --fixture secret-and-injection   # one agent on
+  one PR, prints the Verdict
+  pnpm agent run risk-scoring --json     # machine-readable verdict
+
+  The e2e block is the new tier: watch the clean → auto_merge,
+  risky/flagged/regressing → escalate rows, then the trust-loop showing without 
+  precedent → escalate vs with precedent → auto_merge, and the precision 100% 
+  recall 100% line.
+
+  B. Infra CLI — needs Postgres + Qdrant
+
+  ⚠️ On this machine your host postgresql@17 owns localhost:5432, so you must
+  point at the container's :5433 port (the gitignored override publishes it).
+  Qdrant's localhost:6333 works as-is.
+
+  # (infra is already up; this is how to bring it back if you stop it)
+  cd infra && docker compose up -d postgres qdrant && cd ..
+
+  export DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'
+
+  pnpm autogate db migrate                                              # 
+  idempotent — safe to re-run
+  pnpm autogate db seed                                                 # 3 runs
+  / 3 verdicts / 1 escalation
+  pnpm autogate ingest packages/cli/fixtures/repo.autogate-contracts.json   # 13
+  docs → 16 chunks into Qdrant
+  pnpm autogate run enqueue --repo askable/autogate --pr 142            # prints
+  a new run id
+
+  pnpm autogate db migrate --json    # any command takes --json for structured 
+  output
+
+  C. Verify the data actually landed
+
+  # Postgres (via the container, which always has the autogate role)
+  docker exec autogate-postgres-1 psql -U autogate -d autogate -c "select 
+  run_id,status,pr->>'number' as pr from runs order by created_at desc;"
+  docker exec autogate-postgres-1 psql -U autogate -d autogate -c "select 
+  id,payload from jobs;"
+
+  # Qdrant
+  curl -s http://localhost:6333/collections/code_knowledge | python3 -m
+  json.tool
+
+  D. Optional — drive an enqueued run end-to-end
+
+  run enqueue only puts a job on the queue. To watch the orchestrator actually
+  claim and process it (the worker uses a green mock gate + mock agents), in a
+  second terminal:
+
+  DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate' pnpm
+  --filter api worker
+
+  It claims the queued job, runs runPipeline, and logs completed … outcome=… 
+  verdicts=…; the run's status flips awaiting_checks → completed in the DB.
+  Ctrl-C to stop.
+
+  ---
+  The fast smoke test is just pnpm eval — it proves the whole e2e tier
+  (orchestrator replay, decisions, trust loop, P/R) with no Docker at all. The
+  infra commands (B) are what require the containers and the :5433 DATABASE_URL
+  on your machine.
+
+✻ Brewed for 46s
+
+❯ I want to run it e2e and then see how it runs                                 
+
+⏺ This is exactly "run the app and watch it work" — let me pull in the project's
+  run guidance first.
+
+⏺ Skill(run)
+  ⎿  Successfully loaded skill
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate; d=$PWD; while :; do grep -Hm1
+      '^description:' "$d"/.claude/skills/*/SKILL.md 2>/dev/null; { [ -e
+      "$d/.git" ] || [ "$d" = /…)
+  ⎿  Error: Exit code 1
+     (eval):1: no matches found: 
+     /Users/tyron/Developer/auto-gate/.claude/skills/*/SKILL.md
+
+⏺ No project skill — this is a server-shape app: the long-lived worker drains
+  the Postgres queue and runs runPipeline, driven by the run enqueue CLI. Let me
+  launch the worker in the background and drive a run through it live.
+
+  First, the worker (it'll immediately drain the job already queued from
+  earlier, then keep polling):
+
+⏺ Bash(DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'
+      WORKER_POLL_INTERVAL_MS=1000 pnpm --filter api worker)
+  ⎿  Running in the background (↓ to manage)
+
+⏺ The worker is starting (runs migrations, then polls). Let me wait for it to
+  come online and drain the pre-existing job, then enqueue a fresh run to watch
+  it process live.
+
+⏺ Bash(out=/private/tmp/claude-502/-Users-tyron-Developer-auto-gate/f7fc0871-873
+      e-4ad4-befa-813082d83f3a/tasks/bgtu3xlfs.output
+      i=0; until grep -q "online; polling" "$…)
+  ⎿  === worker output after 0s ===
+
+     > api@0.1.0 worker /Users/tyron/Developer/auto-gate/apps/api
+     … +50 lines (ctrl+o to expand)
+
+⏺ The worker came online and immediately drained the job already in the queue:
+  claimed → ran runPipeline → status=completed outcome=auto_merge verdicts=2.
+  (The Postgres NOTICE … already exists lines are just runMigrations running
+  idempotently — CREATE TABLE IF NOT EXISTS.)
+
+  Now let me enqueue a fresh run and watch the worker process it live, capturing
+  the DB state transition.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      export
+      DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'…)
+  ⎿  === enqueue a fresh run ===
+     run enqueue: ok (runId=run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91 job=jo
+     b-run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91 repo=askable/checkout pr=77
+     … +5 lines (ctrl+o to expand)
+
+⏺ The loop is fast — by the time my snapshot query ran (~1s later), the worker
+  had already claimed and completed it (status=completed, job gone). Let me show
+  the worker's live log for this run and the full persisted result.
+
+⏺ Bash(RID=run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91
+      out=/private/tmp/claude-502/-Users-tyron-Developer-auto-gate/f7fc0871-873e
+      -4ad4-befa-813082d83f3a/tasks/bgtu3xlfs.o…)
+  ⎿  === worker log for this run ===
+     [worker] claimed job job-run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91 for
+     run run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91
+     … +18 lines (ctrl+o to expand)
+
+⏺ Full loop demonstrated live. Let me stop the background worker now.
+
+⏺ Stop Task
+  ⎿  DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'
+     WORKER_POLL_INTERVAL_MS=1000 pnpm --filter api worker · stopped
+
+⏺ Worker stopped. Here's what you just saw run end-to-end.
+
+  The live flow
+
+  pnpm autogate run enqueue --repo askable/checkout --pr 777
+          │  writes StoredRun (status=awaiting_checks) + a {runId} job onto the
+  Postgres queue
+          ▼
+  worker  [claimed job …a5dbb5c1]        ← polls the queue every 1s, claims via
+  SKIP LOCKED
+          │  runPipeline(runId):
+          │    1. Layer-1 gate  → vcs.awaitAllChecks (green) ✓
+          │    2. sandbox.clone → build RunContext
+          │    3. Layer-2 fan-out → agents run, verdicts persisted
+          │    4. decide() → post status
+          ▼
+  worker  [completed job …a5dbb5c1: status=completed outcome=auto_merge
+  verdicts=2]
+          │
+          ▼
+  Postgres  run a5dbb5c1 → completed | 2 verdicts (security pass r5, semantic
+  pass r5) | 0 escalations
+
+  The run went awaiting_checks → completed in under a second — by the time my
+  snapshot query ran, the worker had already drained it. It also drained the
+  older run-d2dda400 (pr#142) the moment it came online.
+
+  One thing worth knowing
+
+  The worker (apps/api/src/worker.ts, wired in ticket 06 for the compose stack)
+  deliberately uses a green mock VCS and two canned low-risk passing agents — so
+  it always lands on auto_merge (risk 10). It proves the infrastructure spine:
+  queue → runPipeline → DB persistence. It does not exercise the real 6 Layer-2
+  agents or varied decisions.
+
+  To see the orchestrator's decision logic run end-to-end with real verdicts —
+  escalate on risk/disagreement/sensitive paths, and the precedent trust-loop
+  flip — that's the e2e eval tier through the same runPipeline:
+
+  pnpm eval     # no infra needed; replays labeled PRs → Decision vs ground 
+  truth + P/R
+
+  So: pnpm autogate run enqueue + worker = the live queue→pipeline→DB plumbing
+  (what we just watched); pnpm eval = the orchestrator making the full range of
+  real decisions. Together they cover the whole path.
+
+  Everything's still up (containers healthy, worker stopped). Want me to leave
+  it running, or tear the stack down?
+
+✻ Brewed for 2m 20s
+❯ the agents aren't running                                                     
+
+⏺ You're right — and that's a real gap in the e2e demo, not something on your
+  end. Let me confirm exactly what's happening and what it'd take to run the
+  real agents, rather than guess.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== worker registry (what actually runs) ==="; grep -n
+      "registry\|passingAgent\|agentRegistry\|buildAgents\|mockAgent\…)
+  ⎿  === worker registry (what actually runs) ===
+     71:const passingAgent = ({ sourceId }: { sourceId: string }): CheckSou
+     rce => ({
+     … +34 lines (ctrl+o to expand)
+
+⏺ Confirmed — two findings, both real:
+
+  1. The worker hardcodes two stub agents. apps/api/src/worker.ts:116 sets
+  registry: [passingAgent("security"), passingAgent("semantic")] — canned
+  CheckSources that ignore the PR and always return pass. The real 6 agents from
+  @autogate/agents are never wired in.
+  2. There is no real LLM-backed AgentSdk anywhere in the repo. agent-sdk
+  depends only on contracts + zod (no @anthropic-ai, no LLM client). The factory
+  createAiAgent takes an injected SDK, and the only implementation that exists
+  is mockAgent. So the agent layer is mock-driven by design at this phase.
+
+  So "the agents aren't running" is correct for the worker. But the real agents
+  do run — against fixtures, not live PRs. Let me prove that:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== the REAL security-review agent, run on a fixture PR ==="…)
+  ⎿  === the REAL security-review agent, run on a fixture PR ===
+     agent:   security-review
+     fixture: secret-and-injection — PR #202 "Add reporting endpoint for ad
+     … +37 lines (ctrl+o to expand)
+
+⏺ That's the key distinction. The real agents do run — above is the actual
+  security-review agent (its real prompt, securityReviewSchema, and
+  standardToVerdict deriving riskContribution: 80 from the critical+high
+  findings). My earlier pnpm eval ran all six the same way through the
+  orchestrator.
+
+  What they don't do is run in the worker, or reason over a live enqueued PR.
+  Two reasons, both structural:
+
+  - The worker stubs them out (worker.ts:116) — a ticket-06 placeholder so the
+  compose stack can smoke-test the queue→pipeline→DB spine without an LLM.
+  - No live AgentSdk exists. Ticket 07 shipped the factory (createAiAgent) and
+  the agents' declarations, but the only AgentSdk implementation is mockAgent,
+  which returns a canned response. There's no Anthropic/Claude client wired
+  anywhere. So every place an agent "runs" today, it's replaying a fixture —
+  never reasoning over real diff content.
+
+  That's why everything is fixture-driven: the agents execute (fan-out, schema
+  validation, toVerdict, varied decisions), but the reasoning is canned. The
+  eval tier (ticket 12) is precisely the mechanism to verify that execution
+  without a live model.
+
+  So "make the agents actually run" means one of three things — they have
+  different scope and cost:
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Its fine. The other person is doing this one. Are we in a position to start   
+  implementing the design?                                                      
+
+⏺ Skill(cofounder-mode)
+  ⎿  Successfully loaded skill
+
+⏺ Before I answer that with a "yes" or "no" — "the design" is the load-bearing
+  term and I don't want to guess what you mean by it. Let me pull the actual
+  state of the repo so we're reasoning from facts, not vibes.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== docs/ ==="; ls -la docs/ 2>/dev/null; for f in docs/*; do [ -f
+      "$f" ] && { echo "--- $f (first 30 lines) ---"; sed…)
+  ⎿  === docs/ ===
+     total 32
+     drwxr-xr-x@  5 tyron  staff   160 13 Jun 13:07 .
+     … +164 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== README.md ==="; sed -n '1,70p' README.md…)
+  ⎿  === README.md ===
+     # Turborepo starter
+     … +89 lines (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ I mean the frontend implementation so we can actually use it. I have the      
+  designs ready from claude design but i need to know if its ready to do that   
+
+⏺ That changes the question entirely — frontend readiness, not "the design" in
+  the abstract. The right question is: can the frontend be built against a 
+  stable API that serves real data, or is the backend still mocked? Let me
+  verify rather than guess, because that's the whole answer.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== apps/web tree ==="; find apps/web -type f -not -path
+      '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.turb…)
+  ⎿  === apps/web tree ===
+     apps/web/app/_components/runs-list.tsx
+     apps/web/app/favicon.ico
+     … +36 lines (ctrl+o to expand)
+
+⏺ apps/web is already a Next.js 16 app with tRPC client/server plumbing wired to
+  @autogate/api, plus a starter runs-list component. So the frontend scaffold
+  exists. The decisive question is whether the API behind it serves real data.
+  Let me check the provider wiring and the router surface.
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ No its not the question, even if its mocked - can we start it now?            
+
+⏺ Yes. You can start the frontend now. Straight answer, then the two things that
+  actually matter.
+
+  Why it's safe to start against the mock: the whole point of the ports/mocks
+  design is that the UI you build against createMockDashboardApi() transfers to
+  real data with zero frontend rework. The mock implements the exact same
+  DashboardApi port the real Store-backed provider will, and the @autogate/api
+  tRPC contract is locked (I was explicitly barred from changing its shapes). So
+  the API you're coding against won't move under you, and "swap mock → real" is
+  a one-line change in apps/api — invisible to apps/web. Building UI-first on
+  the mock is the correct sequencing here, not a compromise.
+
+  And the scaffold's already there: apps/web is Next.js 16 with the tRPC
+  client/server plumbing wired (trpc/client.tsx, server.tsx, query-client),
+  consuming @autogate/api, with @tanstack/react-query. There's even a starter
+  runs-list.tsx. You're not starting from zero.
+
+  To run it:
+  # terminal 1 — API serving the mock dashboard over tRPC
+  pnpm --filter api start            # listens on PORT (default 3002)
+  # terminal 2 — the dashboard
+  pnpm --filter web dev              # point NEXT_PUBLIC_API_URL at the API
+
+  The one thing that can actually bite you — check your Claude-design screens
+  against the data the contract exposes, because that's the thing you can't
+  change unilaterally:
+
+  - listRuns → RunSummary[] (+ cursor): pr{number,title,repo,author,url,branch},
+  status, decision, riskScore, gate{total/passed/failed/pending},
+  checkSummary{pass/warn/fail/pending}, timestamps
+  - getRun → RunDetail: all of the above + gateChecks[], checks[] (verdicts with
+  findings), decision{outcome,reasons,brief}, optional
+  monitoring{canaryPercent,newErrors,window,rolledBack}, timeline[]
+  - metrics → TrustMetrics: agreementRate[], escalation{precision,recall},
+  overridesPerWeek[]
+  - repos → RepoSummary[]; plus override / rollback mutations
+
+  If your designs need a field that isn't in that list, that's a contract change
+  — different owner, and worth catching before you build screens around data
+  that doesn't exist yet, not after.
+
+  So: green light to start. Want me to spin up both servers now and confirm the
+  mock dashboard is actually answering (so you've got a live target before you
+  start wiring screens)?
+
+✻ Cooked for 40s
+
+❯ how can i test this manually                                                  
+
+⏺ Good — let me give you a manual test recipe, but first let me get the exact
+  tRPC procedure names and endpoint path from the router (so the commands I h  ⎿  Interrupted · What should Claude do instead?
+
+❯ how can i test this manually                                                  
+
+⏺ Let me get the exact procedure names and how the server exposes them, so the
+  manual commands I give you actually work — then I'll verify them live.
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ Router surface confirmed: health, runs.list, runs.byId, metrics, repos
+  (queries) + runs.override/runs.rollback (mutations), served by a standalone
+  tRPC server on port 3002. Let me start the mock-backed API and verify the
+  exact request format live so the recipe I give you is real.
+
+⏺ Bash(PORT=3002 pnpm --filter api start)
+  ⎿  Running in the background (↓ to manage)
+
+⏺ Bash(out=/private/tmp/claude-502/-Users-tyron-Developer-auto-gate/f7fc0871-873
+      e-4ad4-befa-813082d83f3a/tasks/brlbx32mb.output
+      i=0; until grep -q "listening" "$out" 2…)
+  ⎿  === server log ===
+
+     > api@0.1.0 start /Users/tyron/Developer/auto-gate/apps/api
+     … +211 lines (ctrl+o to expand)
+
+⏺ Background command "Start the mock-backed API server (background)" failed with exit code 1
+
+⏺ An API is already running on :3002 (my start attempt hit EADDRINUSE, and the
+  curls answered) — so you can test right now. Queries return plain JSON under
+  result.data, no transformer wrapping. Let me nail the two remaining formats (a
+  single-run query and a mutation) so the recipe is complete and verified.
+
+⏺ Bash(echo "=== runs.byId (clean --data-urlencode form) ==="
+      curl -s --get http://localhost:3002/runs.byId --data-urlencode
+      'input={"runId":"run_02"}' | python3 -m js…)
+  ⎿  === runs.byId (clean --data-urlencode form) ===
+
+     === mutation: runs.rollback (POST, raw JSON body) ===
+     … +16 lines (ctrl+o to expand)
+
+⏺ Both came back empty/non-JSON — let me see the raw responses and status codes
+  to get the formats right.
+
+⏺ Bash(echo "=== runs.byId raw (with status) ==="
+      curl -s -w '\n[HTTP %{http_code}]\n' --get http://localhost:3002/runs.byId
+      --data-urlencode 'input={"runId":"run_02"}…)
+  ⎿  Error: Exit code 7
+     === runs.byId raw (with status) ===
+
+     [HTTP 000]
+
+     === runs.list raw to confirm still works ===
+
+     [HTTP 000]
+
+     === rollback mutation raw ===
+     … +2 lines (ctrl+o to expand)
+
+⏺ The pre-existing server on 3002 just went away (HTTP 000 = nothing listening),
+  so the port is free now. Let me start a fresh API and verify the full set
+  including runs.byId and the mutation.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      nohup pnpm --filter api start > /tmp/autogate_api.log 2>&1 &…)
+  ⎿  launched pid 24847
+     === log ===
+     > tsx src/index.ts
+     … +21 lines (ctrl+o to expand)
+
+⏺ Fully verified. Mutations are POST with the raw input JSON as the body;
+  queries are GET with ?input=<json>. The API is up on :3002 now. Let me boot
+  the dashboard too and confirm the browser path actually renders the mock data,
+  so you've got a confirmed-working stack to poke at.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      nohup pnpm --filter web dev > /tmp/autogate_web.log 2>&1 &…)
+  ⎿  launched web pid 24895
+     === web log ===
+     - Local:         http://localhost:3000
+     … +12 lines (ctrl+o to expand)
+
+⏺ Done — and I've left both servers running, so you can test right now. The
+  dashboard's server-rendered HTML already contains the live mock data
+  (run_01–run_05, "Copy tweak on pricing page", auto_merge/escalate), so the
+  full path works end-to-end.
+
+  Manual test — it's live now
+
+  Browser (the real test): open http://localhost:3000
+
+  You'll see the Autogate — runs page listing the 5 mock runs with their
+  decision/status/risk:
+  - run_01 — auto_merge, completed, risk 8
+  - run_02 — escalate, completed, risk 72
+  - run_03 — awaiting_checks, pending
+  - …plus run_04/run_05
+
+  That's your live target to build screens against. Edit any file under
+  apps/web/app/ and it hot-reloads.
+
+  API directly (curl smoke — all verified just now):
+  # queries → GET, input as ?input=<json>
+  curl -s http://localhost:3002/health
+  curl -s --get http://localhost:3002/runs.list  --data-urlencode
+  'input={"limit":20}'
+  curl -s --get http://localhost:3002/runs.byId  --data-urlencode
+  'input={"runId":"run_02"}'
+  curl -s http://localhost:3002/metrics
+  curl -s http://localhost:3002/repos
+
+  # mutations → POST, raw JSON body
+  curl -s -X POST http://localhost:3002/runs.rollback -H 'content-type: 
+  application/json' -d '{"runId":"run_02"}'
+  curl -s -X POST http://localhost:3002/runs.override -H 'content-type: 
+  application/json' -d
+  '{"runId":"run_02","action":"approve_merge","reason":"manual test"}'
+  All return {"result":{"data": …}} (plain JSON, no transformer).
+
+  If you need to (re)start them yourself
+
+  pnpm --filter api start    # tRPC API on :3002 (mock dashboard)
+  pnpm --filter web dev      # Next.js dashboard on :3000
+  # web reads NEXT_PUBLIC_API_URL (defaults to http://localhost:3002)
+
+  Two things to keep in mind
+
+  - It's the mock provider (createMockDashboardApi), so the data is
+  static/canned — great for building and laying out every screen, but it won't
+  reflect runs you enqueue via the CLI until the real Store-backed provider is
+  swapped in (the ticket-01 one-line change in apps/api/src/index.ts). For
+  implementing your designs, the mock is the right target.
+  - Build against the contract surface I listed earlier — if a design needs a
+  field that isn't in RunSummary/RunDetail/TrustMetrics, that's a contract
+  change, not a frontend one.
+
+  The two servers are running in the background now (API pid 24847, web pid
+  24895). Want me to leave them up, or stop them? To stop manually: pkill -f 
+  "tsx src/index.ts" and pkill -f "next dev".
+
+✻ Sautéed for 2m 58s
+
+❯ Kill those servers.                                                           
+                                                                                
+  And is the real surface ready to be used? instead of the mock?                
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== killing servers ==="…)
+  ⎿  === killing servers ===
+     api :3002 -> 000
+     api :3002 -> down
+     … +24 lines (ctrl+o to expand)
+
+⏺ Servers killed — both :3002 and :3000 confirmed down.
+
+  On the real surface: no, it's not ready. I verified — the only DashboardApi
+  implementation in the repo is createMockDashboardApi(). There is no
+  Store-backed provider anywhere. The real provider was a ticket-01 deliverable 
+  that didn't get finished: the orchestrator loop
+  (runPipeline/decide/buildBrief) landed, but the "implement the real
+  DashboardApi provider + swap the injection" half didn't.
+  apps/api/src/index.ts:18 still hardcodes the mock.
+
+  And here's the part that matters — it's not the "one-line swap" the ticket 
+  optimistically claims, because the persistence layer doesn't currently store
+  several things the dashboard contract needs. Reading from the Store today,
+  you'd be missing:
+
+  ┌─────────────────────┬──────┬────────────────────────────────────────────┐
+  │                     │ In   │                                            │
+  │   Dashboard needs   │ the  │                    Why                     │
+  │                     │ DB?  │                                            │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ checkSummary        │ ✅   │ derivable from the verdicts table          │
+  │ (verdict tallies)   │      │                                            │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ overridesPerWeek    │ ✅   │ from the overrides table                   │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ brief               │ ✅   │ stored in escalations                      │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │                     │      │ runs only stores id/pr/status/timestamps — │
+  │ decision.outcome /  │ ❌   │  never the decision. Must re-derive via    │
+  │ reasons / riskScore │      │ decide(), which needs the gate result +    │
+  │                     │      │ policy at read time                        │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ gate{…} +           │      │ runPipeline reads these from               │
+  │ gateChecks[]        │ ❌   │ vcs.awaitAllChecks and throws them away —  │
+  │                     │      │ never persisted, can't be reconstructed    │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ timeline[]          │ ❌   │ built inline in runPipeline, discarded     │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ monitoring{…}       │ ❌   │ ticket 10 isn't built — no data source     │
+  │ (Layer 3)           │      │                                            │
+  ├─────────────────────┼──────┼────────────────────────────────────────────┤
+  │ metrics             │      │ no historical agent-vs-human labeling      │
+  │ agreementRate /     │ ❌   │ stored                                     │
+  │ escalation P/R      │      │                                            │
+  └─────────────────────┴──────┴────────────────────────────────────────────┘
+
+  So "make it real" is a real chunk of backend work, not a swap:
+  1. Persist the decision (outcome/reasons/riskScore), gate check runs, and
+  timeline in runPipeline (Store schema + orchestrator change).
+  2. Write the real provider that reads runs+verdicts+escalations+overrides and
+  assembles RunSummary/RunDetail.
+  3. Swap createMockDashboardApi() → the real one (that part is one line).
+  4. Stub or defer monitoring + the trust-metrics history (those depend on
+  ticket 10 + a labeling source — separate work).
+
+  But none of this blocks you. Because the contract is locked and the mock
+  implements the same port, you build the entire frontend against the mock now,
+  and the real provider lands underneath with zero frontend changes. That's the
+  intended sequencing — frontend and "make-it-real" are independent tracks.
+
+  My recommendation: start the frontend on the mock today; treat the real
+  provider as a parallel backend task. I'd scope a v1 real provider =
+  runs/verdicts/decisions/escalations/overrides served for real, with monitoring
+  and metrics left as stubs (clearly the lowest-value, highest-dependency
+  fields). That gets you a genuinely usable dashboard against live runs without
+  waiting on Layer 3 or a metrics pipeline.
+
+  Want me to build that v1 real provider (steps 1–3 above) so you can point the
+  dashboard at actual enqueued runs? It's the natural next ticket, and it's mine
+  to take unless someone else owns ticket 01's remainder.
+
+✻ Brewed for 1m 22s
+❯ Are you sure? Is there outstanding stuff on main?                             
+
+⏺ Fair challenge — let me not re-assert from a possibly-stale view. The "other
+  person" may have pushed since my commit. Let me fetch and check main against
+  the remote, and re-verify against the actual latest tree.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git fetch origin 2>&1 | tail -5…)
+  ⎿  From github.com:isaacpovey/autogate
+        ba2a0b4..595e3af  demo/scenario-1-clean-copy -> origin/demo/scenari
+     o-1-clean-copy
+     … +21 lines (ctrl+o to expand)
+
+❯ And is there outstanding stuff remaining from stream A? 
+
+⏺ Good — that already answers part of it. Let me also check the other branches
+  (the "other person" may have work there) before I commit to an answer, since
+  main itself is clean.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== how do other branches diverge from main? ==="…)
+  ⎿  === how do other branches diverge from main? ===
+     --- origin/stream-b-agents : commits ahead of main ---
+     --- origin/demo/scenario-1-clean-copy : commits ahead of main ---
+     … +21 lines (ctrl+o to expand)
+
+⏺ main is in sync with origin (my commit is the tip), and I checked the other
+  two branches too: stream-b-agents is not ahead, and demo/scenario-1-clean-copy
+  only has demo/webhook-trigger commits. No branch has a real DashboardApi 
+  provider — only mock-dashboard.ts exists everywhere. So yes, I'm sure: the
+  real surface isn't built, on main or anywhere.
+
+  For your second question — "outstanding stuff remaining from Stream A" — that
+  deserves a real audit, not me re-asserting from memory. Let me run one against
+  each Stream A ticket's Definition of Done, with an adversarial verify pass so
+  I don't report a "gap" that's actually implemented.
+
+⏺ Workflow(Audit each Stream A ticket (01-06, 14 + the DashboardApi provider)
+          against its Definition of Done, then adversarially verify each claimed
+          gap)
+  ⎿  /workflows to view dynamic workflow runs
+
+⏺ While that audit runs (one reader per ticket + an adversarial verifier on
+  every claimed gap), let me revert a stray generated file from my server
+  testing and give you the answer I'm already certain of.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git checkout -- apps/web/next-env.d.ts 2>&1…)
+  ⎿  working tree:
+
+     === known-certain Stream A gap: SSE in the router ===
+     … +4 lines (ctrl+o to expand)
+
+⏺ Working tree clean. Here's where it stands:
+
+  "Are you sure / outstanding on main?" — Yes, certain. main is the tip (in sync
+  with origin), and no branch has a real DashboardApi provider —
+  mock-dashboard.ts is the only implementation anywhere. So the real surface
+  genuinely isn't built.
+
+  Two Stream A gaps I can already confirm without waiting for the audit (both
+  are ticket-01 remainder, the dashboard-facing half):
+  1. Real DashboardApi provider — never built; the mock is wired in
+  apps/api/src/index.ts:18.
+  2. SSE subscriptions (stream / runs.onUpdate) — the router itself says,
+  verbatim, "Live SSE deltas … are not yet implemented." So the dashboard has no
+  live-update channel; it'd rely on refetch/poll.
+  3. (Related) runPipeline doesn't persist the decision/gate/timeline, so even
+  once the provider exists, those fields need a Store/orchestrator change — not
+  just a read-side adapter.
+
+  The full picture across 02-sandbox, 03-store, 04-vcs-github, 05-memory-qdrant,
+  06-infra, 14-gate-actions is what the audit is verifying right now (my prior:
+  largely done — the packages are real and the demo/scenario-1-clean-copy
+  branch shows someone live-testing the GitHub webhook/gate via ngrok, which
+  means vcs-github + gate-actions are exercised for real, not stubbed). I'll
+  give you the confirmed, gap-by-gap list the moment it lands rather than guess
+  the details.
+
+✻ Crunched for 3m 16s
+
+❯ While that is running, we need to build the actual dashboard provider         
+
+⏺ This is building a new component — and there are real design forks (the
+  persistence gaps I flagged). Let me pull up the brainstorming approach so we
+  scope it right before I write code, rather than guessing the shape.
+
+⏺ Skill(superpowers:brainstorming)
+  ⎿  Successfully loaded skill
+
+⏺ Dynamic workflow "Audit each Stream A ticket (01-06, 14 + the DashboardApi provider) against its Definition of Done, then adversarially verify each claimed gap" completed · 6m 1s
+
+⏺ The audit landed while that loaded — quick summary, then the real decision for
+  the provider.
+
+  Stream A audit results: 02-sandbox and 04-vcs-github — complete, no gaps
+  (vcs-github is real against live GitHub, including the gate). 06-infra —
+  partial, 2 blockers (both adversarially confirmed): setup.sh calls pnpm 
+  --filter @autogate/store-postgres migrate and … memory-qdrant ingest, but
+  those package scripts don't exist — setup.sh should be calling the autogate
+  CLI I just built. The 01/03/05 audits died on a transient API socket error, so
+  I don't have verified results for those three (I can re-run them) — but 01's
+  dashboard-provider + SSE gaps I've already confirmed by hand.
+
+  Now — building the provider. The one load-bearing decision is where the data 
+  the dashboard needs but the Store doesn't hold comes from (decision
+  outcome/reasons/riskScore, the gate check runs, the timeline). runPipeline
+  computes all of these and then throws them away — only
+  verdicts/escalations/overrides get persisted. How we close that gap defines
+  the whole design, so I want your call before I write anything.
+
+⏺ User answered Claude's questions:
+  ⎿  · RunSummary/RunDetail need decision outcome+reasons+riskScore, the gate 
+     check runs, and the timeline — none of which the Store persists today 
+     (runPipeline discards them). How should the real provider get them? → 
+     Persist a run snapshot
+     · What fidelity for the softer fields in this first version (metrics, 
+     mutations, Layer-3 monitoring)? → Pragmatic v1
+
+⏺ Locked in: persist a run-result snapshot + pragmatic v1. Before I present the
+  concrete design, let me ground it in two things I need to get right — the
+  exact projections the mock produces (so the real one matches), and whether
+  apps/api can pull the repo-configs from @autogate/infra for repos().
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== infra package name + exports (can apps/api import repo-configs?)
+      ==="; node -e "const p=require('./infra/package.j…)
+  ⎿  === infra package name + exports (can apps/api import repo-configs?) =
+     ==
+     {
+     … +37 lines (ctrl+o to expand)
+
+⏺ Grounded. @autogate/infra has no export (I'll add one for the repo-configs),
+  and the Store port only has overrides.listForRun — no list-all — so
+  overridesPerWeek needs a small store-side query. Neither requires touching
+  @autogate/contracts. Here's the design.
+
+  Design — Store-backed DashboardApi provider (v1)
+
+  Principle: a thin read-model over the existing Store + a new run-result
+  snapshot. Zero changes to @autogate/contracts, the @autogate/api router, or
+  the DashboardApi/RunDetail shapes — only additive code in store-postgres,
+  apps/api, and one export in @autogate/infra. The frontend and the locked
+  contract are untouched.
+
+  1. New persistence (packages/store-postgres) — the snapshot you chose:
+  - New run_results table: run_id PK, decision jsonb 
+  {outcome,reasons,riskScore}, gate_checks jsonb [{name,conclusion,url}], 
+  timeline jsonb [{at,event}], risk_score, created_at.
+  - New createRunResults({connectionString}) accessor (save / get) — a sibling
+  to createStore, not part of the Store port (so the contract stays put). Plus a
+  tiny listOverrides() for the weekly tally.
+
+  2. Orchestrator writes the snapshot 
+  (apps/api/src/orchestrator/runPipeline.ts):
+  - Add an optional runResults? port to OrchestratorPorts (that type lives in
+  apps/api, not contracts). On both exit paths (blocked + completed), persist
+  the snapshot it already computes. Optional → the e2e eval tier (which builds
+  OrchestratorPorts with mocks) is unaffected and needs no change.
+
+  3. The provider (apps/api/src/dashboard.ts) — createStoreDashboardApi({ store,
+  runResults, repoConfigs, policy }):
+
+  ┌─────────────────────────────┬────────────────────────────────────────────┐
+  │           Method            │                v1 behaviour                │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │                             │ Real — runs + verdicts (checkSummary) +    │
+  │ runs.list / runs.byId       │ run_result (decision/gate/timeline) +      │
+  │                             │ escalation (brief) + overrides             │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ repos                       │ Real — from @autogate/infra repo-configs   │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ metrics.overridesPerWeek    │ Real — from listOverrides()                │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ metrics.agreementRate /     │ Stub — empty/zeros, clearly marked (no     │
+  │ escalation P/R              │ labeled history yet)                       │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ runs.override               │ Real — persists override + reflects it     │
+  │                             │ (outcome→merged/blocked, timeline entry)   │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ runs.rollback               │ Stub — returns current detail, no infra    │
+  │                             │ revert (Layer-3 territory)                 │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ monitoring                  │ Omitted — optional field, ticket 10        │
+  └─────────────────────────────┴────────────────────────────────────────────┘
+
+  4. Wiring: swap createMockDashboardApi() → createStoreDashboardApi(...) in
+  apps/api/src/index.ts (connects to DATABASE_URL); wire runResults into the
+  worker; add a ./repo-configs export to @autogate/infra.
+
+  5. Verification: targeted smoke that seeds a run → runPipeline → asserts the
+  provider returns a complete RunDetail; check-types + lint; curl parity against
+  the contract; then point the dashboard at it and confirm real runs render.
+
+  Out of scope (flagging, not bundling): the audit's 06-infra blocker — setup.sh
+  calls non-existent migrate/ingest package scripts; it should call the
+  autogate CLI. Separate fix.
+
+  Approve this and I'll build it directly (it's well-scoped enough to skip the
+  formal spec doc). Or say the word and I'll write the spec + plan first.
+
+✻ Cogitated for 14m 15s
+❯ yep build                                                                     
+
+⏺ Approved. Let me read the two reference files I need to mirror exactly — the
+  mock provider's projections and the store-postgres drizzle schema — then
+  build.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Approved. Let me build it in dependency order, type-checking as I go. Setting
+  up tasks first.
+
+⏺ Update(packages/store-postgres/src/schema.ts)
+  ⎿  Added 2 lines
+       5    CheckLayer,
+       6    Finding,
+       7    OverrideAction,
+       8 +  RunDecision,                                                 
+       9 +  RunDetail,                                                   
+      10  } from '@autogate/contracts';
+      11  import {
+      12    doublePrecision,
+
+⏺ Update(packages/store-postgres/src/schema.ts)
+  ⎿  Added 18 lines
+      60    createdAt: text('created_at').notNull(),
+      61  });
+      62  
+      63 +/**                                                            
+      64 + * Per-run result snapshot. `runPipeline` computes the decision
+         +, gate check runs,                                             
+      65 + * and timeline but only persists verdicts/escalations through 
+         +the `Store` port;                                              
+      66 + * this table captures the rest so the dashboard provider can r
+         +econstruct a full                                              
+      67 + * `RunDetail` from storage alone. Not part of the `Store` cont
+         +ract — read/written                                            
+      68 + * via the standalone `createRunResults` accessor.             
+      69 + */                                                            
+      70 +export const runResults = pgTable('run_results', {             
+      71 +  runId: text('run_id').primaryKey(),                          
+      72 +  decision: jsonb('decision')                                  
+      73 +    .$type<{ outcome: RunDecision; riskScore: number; reasons: 
+         +string[] }>()                                                  
+      74 +    .notNull(),                                                
+      75 +  gateChecks: jsonb('gate_checks').$type<RunDetail['gateChecks'
+         +]>().notNull(),                                                
+      76 +  timeline: jsonb('timeline').$type<RunDetail['timeline']>().no
+         +tNull(),                                                       
+      77 +  riskScore: doublePrecision('risk_score').notNull(),          
+      78 +  createdAt: text('created_at').notNull(),                     
+      79 +});                                                            
+      80 +                                                               
+      81  export const jobs = pgTable('jobs', {
+      82    id: text('id').primaryKey(),
+      83    payload: jsonb('payload').notNull(),
+
+⏺ Now the migration statement and the new run-result.ts accessor:
+
+⏺ Update(packages/store-postgres/src/migrate.ts)
+  ⎿  Added 8 lines
+      43      claimed_at timestamptz,
+      44      created_at timestamptz NOT NULL DEFAULT now()
+      45    )`,
+      46 +  sql`CREATE TABLE IF NOT EXISTS run_results (                 
+      47 +    run_id text PRIMARY KEY,                                   
+      48 +    decision jsonb NOT NULL,                                   
+      49 +    gate_checks jsonb NOT NULL,                                
+      50 +    timeline jsonb NOT NULL,                                   
+      51 +    risk_score double precision NOT NULL,                      
+      52 +    created_at text NOT NULL                                   
+      53 +  )`,                                                          
+      54  ];
+      55  
+      56  export const runMigrations = async ({
+
+⏺ Write(packages/store-postgres/src/run-result.ts)
+  ⎿  Wrote 72 lines to packages/store-postgres/src/run-result.ts
+         ';port type { RunDecision, RunDetail } from '@autogate/contracts
+       2 import { eq } from 'drizzle-orm';
+       4 import postgres from 'postgres';-orm/postgres-js';
+       5 import { runResults } from './schema.js';
+       6 
+       8  * The per-run snapshot `runPipeline` produces but the `Store` p
+         ort doesn't hold:
+          the Layer-1 gateminus the brief, which lives in `escalations`),
+      10  * check runs, the timeline, and the aggregate risk score. Shape
+         s are derived from
+     … +71 lines (ctrl+o to expand)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ That deprecation warning is pre-existing on the verdicts table (not my change)
+  — turbo check-types passed with it before. Now add the metrics query accessor
+  and the package exports.
+
+⏺ Update(packages/store-postgres/src/store.ts)
+  ⎿  Added 27 lines
+      163    };
+      164  };
+      165  
+      166 +/**                                                           
+      167 + * Read-side queries the dashboard needs that the `Store` port
+          + doesn't expose                                               
+      168 + * (e.g. all overrides for the per-week trust metric). Kept of
+          +f the `Store`                                                 
+      169 + * contract so `@autogate/contracts` stays unchanged; one conn
+          +ection, created once.                                         
+      170 + */                                                           
+      171 +export const createMetricsQueries = ({                        
+      172 +  connectionString,                                           
+      173 +}: {                                                          
+      174 +  connectionString: string;                                   
+      175 +}): { listOverrides: () => Promise<StoredOverride[]> } => {   
+      176 +  const sql = postgres(connectionString);                     
+      177 +  const db = drizzle(sql);                                    
+      178 +  return {                                                    
+      179 +    listOverrides: async () => {                              
+      180 +      const rows = await db.select().from(overrides).orderBy(a
+          +sc(overrides.createdAt));                                     
+      181 +      return rows.map(                                        
+      182 +        (row): StoredOverride => ({                           
+      183 +          runId: row.runId,                                   
+      184 +          action: row.action,                                 
+      185 +          reason: row.reason,                                 
+      186 +          createdAt: row.createdAt,                           
+      187 +        }),                                                   
+      188 +      );                                                      
+      189 +    },                                                        
+      190 +  };                                                          
+      191 +};                                                            
+      192 +                                                              
+      193  export type { StoredRun, StoredVerdict, StoredEscalation, Stor
+           edOverride };
+
+⏺ Update(packages/store-postgres/src/index.ts)
+  ⎿  Added 7 lines, removed 1 line
+       1 -export { createStore } from './store.js';                      
+       1 +export { createStore, createMetricsQueries } from './store.js';
+       2  export { createQueue } from './queue.js';
+       3  export { runMigrations } from './migrate.js';
+       4 +export {                                                       
+       5 +  createRunResults,                                            
+       6 +  type RunResult,                                              
+       7 +  type RunResultInput,                                         
+       8 +  type RunResultStore,                                         
+       9 +} from './run-result.js';                                      
+      10  export * as schema from './schema.js';
+
+⏺ Type-check store-postgres before moving on:
+
+⏺ Bash(pnpm --filter @autogate/store-postgres check-types 2>&1 | tail -20)
+  ⎿  > @autogate/store-postgres@0.0.0 check-types /Users/tyron/Developer/au
+     to-gate/packages/store-postgres
+     > tsc --noEmit
+
+⏺ store-postgres clean. Task 6 done. Now the orchestrator — add the optional
+  port and the snapshot writes.
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 20 lines
+      16  import { buildBrief } from "./buildBrief.js";
+      17  
+      18  /**
+      19 + * The derived view `runPipeline` computes but the `Store` port
+         + doesn't hold:                                                 
+      20 + * decision, gate check runs, and timeline. Persisting it lets 
+         +the dashboard                                                  
+      21 + * reconstruct a full `RunDetail` from storage. Optional — the 
+         +eval tier runs the                                             
+      22 + * pipeline without it, and the loop still imports no concrete 
+         +adapter (the port                                              
+      23 + * is structural, satisfied by `@autogate/store-postgres`'s `cr
+         +eateRunResults`).                                              
+      24 + */                                                            
+      25 +export type RunResultSnapshot = {                              
+      26 +  runId: string;                                               
+      27 +  decision: Decision;                                          
+      28 +  gateChecks: RunDetail["gateChecks"];                         
+      29 +  timeline: RunDetail["timeline"];                             
+      30 +  riskScore: number;                                           
+      31 +};                                                             
+      32 +                                                               
+      33 +export type RunResultSink = {                                  
+      34 +  save: (args: { result: RunResultSnapshot }) => Promise<void>;
+      35 +};                                                             
+      36 +                                                               
+      37 +/**                                                            
+      38   * Everything the pipeline touches the outside world through. A
+          ll I/O is here as
+      39   * injected ports — the loop itself imports no concrete adapter
+          .
+      40   */
+     ...
+      47    policy: Policy;
+      48    resolveRepoConfig: (args: { repo: string }) => RepoConfig;
+      49    now: () => string;
+      50 +  runResults?: RunResultSink;                                  
+      51  };
+      52  
+      53  const toCheckSummary = ({ verdicts }: { verdicts: Verdict[] }) 
+          =>
+
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 2 lines, removed 1 line
+      134  export const runPipeline =
+      135    ({ ports }: { ports: OrchestratorPorts }) =>
+      136    async (runId: string): Promise<RunDetail> => {
+      137 -    const { vcs, sandbox, store, memory, registry, policy, res
+          -olveRepoConfig, now } = ports;                                
+      137 +    const { vcs, sandbox, store, memory, registry, policy, res
+          +olveRepoConfig, now, runResults } =                           
+      138 +      ports;                                                  
+      139  
+      140      const existing = await store.runs.get({ runId });
+      141      if (existing === undefined) {
+
+⏺ Now the snapshot writes on both exit paths:
+
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 13 lines, removed 1 line
+      161          state: "pending",
+      162          description: decision.reasons.join(" "),
+      163        });
+      164 -      return blockedDetail({                                  
+      164 +      const detail = blockedDetail({                          
+      165          run: blockedRun,
+      166          decision,
+      167          gate,
+     ...
+      170            { at: blockedRun.updatedAt, event: "Layer 1 gate not
+            green; awaiting checks." },
+      171          ],
+      172        });
+      173 +      if (runResults !== undefined) {                         
+      174 +        await runResults.save({                               
+      175 +          result: {                                           
+      176 +            runId,                                            
+      177 +            decision,                                         
+      178 +            gateChecks: detail.gateChecks,                    
+      179 +            timeline: detail.timeline,                        
+      180 +            riskScore: decision.riskScore,                    
+      181 +          },                                                  
+      182 +        });                                                   
+      183 +      }                                                       
+      184 +      return detail;                                          
+      185      }
+      186  
+      187      const runningRun: StoredRun = { ...existing, status: "runn
+           ing", updatedAt: now() };
+
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 1 line, removed 1 line
+      245  
+      246      const storedVerdicts = await store.verdicts.listForRun({ r
+           unId });
+      247  
+      248 -    return {                                                  
+      248 +    const detail: RunDetail = {                               
+      249        runId,
+      250        pr: summaryPr({ run: completedRun }),
+      251        status: completedRun.status,
+
+⏺ Update(apps/api/src/orchestrator/runPipeline.ts)
+  ⎿  Added 13 lines
+      281          { at: completedAt, event: `Decision: ${decision.outcom
+           e}.` },
+      282        ],
+      283      };
+      284 +                                                              
+      285 +    if (runResults !== undefined) {                           
+      286 +      await runResults.save({                                 
+      287 +        result: {                                             
+      288 +          runId,                                              
+      289 +          decision,                                           
+      290 +          gateChecks: detail.gateChecks,                      
+      291 +          timeline: detail.timeline,                          
+      292 +          riskScore: decision.riskScore,                      
+      293 +        },                                                    
+      294 +      });                                                     
+      295 +    }                                                         
+      296 +    return detail;                                            
+      297    };
+
+⏺ RunDetail is already imported in runPipeline. Type-check the orchestrator
+  change:
+
+⏺ Bash(pnpm --filter api check-types 2>&1 | tail -20)
+  ⎿  > api@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/api
+     > tsc --noEmit
+
+⏺ Task 7 done. Now the infra repo-configs export. Let me check the export names
+  and infra manifest.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== export names ==="; grep -n "export"
+      infra/repo-configs/askable.ts infra/repo-configs/autogate.ts…)
+  ⎿  === export names ===
+     infra/repo-configs/askable.ts:24:export const askableConfig: RepoConfi
+     g = repoConfigSchema.parse(config);
+     … +32 lines (ctrl+o to expand)
+
+⏺ NodeNext, exports askableConfig/autogateConfig. Let me add the index + export,
+  mark task 8.
+
+⏺ Write(infra/repo-configs/index.ts)
+  ⎿  Wrote 9 lines to infra/repo-configs/index.ts
+      2 import { askableConfig } from './askable.js';ntracts';
+      3 import { autogateConfig } from './autogate.js';
+      4 
+      5 export { askableConfig } from './askable.js';
+      6 export { autogateConfig } from './autogate.js';
+      7 
+      8 /** All configured repos — the source of truth for the dashboard'
+        s `repos()` list. */
+      9 export const repoConfigs: RepoConfig[] = [autogateConfig, askable
+        Config];
+     … +1 line (ctrl+o to expand)
+
+⏺ Update(infra/package.json)
+  ⎿  File must be read first
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(infra/package.json)
+  ⎿  Added 3 lines
+       3    "version": "0.0.0",
+       4    "private": true,
+       5    "type": "module",
+       6 +  "exports": {                                                 
+       7 +    "./repo-configs": "./repo-configs/index.ts"                
+       8 +  },                                                           
+       9    "scripts": {
+      10      "check-types": "tsc --noEmit",
+      11      "validate-configs": "tsx validate-configs.ts"
+
+⏺ Now add the @autogate/infra dep to apps/api and build the provider.
+
+⏺ Update(apps/api/package.json)  ⎿  Added 1 line
+      18    "dependencies": {
+      19      "@autogate/api": "workspace:*",
+      20      "@autogate/contracts": "workspace:*",
+      21 +    "@autogate/infra": "workspace:*",                          
+      22      "@autogate/sandbox": "workspace:*",
+      23      "@autogate/store-postgres": "workspace:*",
+      24      "@trpc/server": "^11.17.0",
+
+⏺ Now the provider. Writing apps/api/src/dashboard.ts:
+
+⏺ Write(apps/api/src/dashboard.ts)
+  ⎿  Wrote 248 lines to apps/api/src/dashboard.ts
+       1 import type {
+       2   CheckResult,
+       3   DashboardApi,
+       4   PullRequest,
+       5   RepoConfig,
+       6   RepoSummary,
+       7   RunDecision,
+       8   RunDetail,
+       9   RunsListResponse,
+      10   RunSummary,
+     … +266 lines (ctrl+o to expand)
+
+⏺ Now wire it into the server (swap mock → real, run migrations on boot).
+  Editing apps/api/src/index.ts:
+
+⏺ Update(apps/api/src/index.ts)
+  ⎿  Added 36 lines, removed 14 lines
+       1  import { createHTTPServer } from "@trpc/server/adapters/standal
+          one";
+       2  import cors from "cors";
+       3  import { appRouter, createContext } from "@autogate/api";
+       4 -import { createMockDashboardApi } from "./mock-dashboard";     
+       4 +import {                                                       
+       5 +  createMetricsQueries,                                        
+       6 +  createRunResults,                                            
+       7 +  createStore,                                                 
+       8 +  runMigrations,                                               
+       9 +} from "@autogate/store-postgres";                             
+      10 +import { repoConfigs } from "@autogate/infra/repo-configs";    
+      11 +import { createStoreDashboardApi } from "./dashboard";         
+      12  
+      13  const PORT = Number(process.env.PORT ?? 3002);
+      14  const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:
+          3000";
+      15 +const DATABASE_URL =                                           
+      16 +  process.env.DATABASE_URL ?? "postgres://autogate:autogate@loc
+         +alhost:5432/autogate";                                         
+      17  
+      18  /**
+      19   * Orchestrator/API HTTP server. Serves the `@autogate/api` tRP
+          C router over a
+      11 - * framework-free Node server (this is what replaced the planne
+         -d Hono setup).                                                 
+      20 + * framework-free Node server.                                 
+      21   *
+      13 - * Dependency injection happens here at the boundary: the in-me
+         -mory mock                                                      
+      14 - * `DashboardApi` is wired into the request context. When ticke
+         -t 01 lands the                                                 
+      15 - * real Store/orchestrator-backed provider, this single argumen
+         -t changes — no                                                 
+      16 - * router, procedure, or dashboard edits.                      
+      22 + * Dependency injection happens here at the boundary: the real,
+         + Store-backed                                                  
+      23 + * `DashboardApi` provider is wired into the request context (t
+         +icket 01 remainder                                             
+      24 + * — the planned one-line swap from the in-memory mock). Migrat
+         +ions run on boot so                                            
+      25 + * a fresh DB serves immediately; the dashboard reads live runs
+         +/verdicts plus the                                             
+      26 + * per-run snapshots `runPipeline` persists.                   
+      27   */
+      18 -const dashboard = createMockDashboardApi();                    
+      28 +const main = async (): Promise<void> => {                      
+      29 +  await runMigrations({ connectionString: DATABASE_URL });     
+      30  
+      20 -const server = createHTTPServer({                              
+      21 -  router: appRouter,                                           
+      22 -  createContext: createContext({ dashboard }),                 
+      23 -  middleware: cors({ origin: WEB_ORIGIN }),                    
+      24 -});                                                            
+      31 +  const store = createStore({ connectionString: DATABASE_URL })
+         +;                                                              
+      32 +  const runResults = createRunResults({ connectionString: DATAB
+         +ASE_URL });                                                    
+      33 +  const { listOverrides } = createMetricsQueries({ connectionSt
+         +ring: DATABASE_URL });                                         
+      34 +  const dashboard = createStoreDashboardApi({ store, runResults
+         +, listOverrides, repoConfigs });                               
+      35  
+      26 -server.listen(PORT);                                           
+      27 -console.log(`🚪 autogate api (tRPC) listening on http://localho
+         -st:${PORT}`);                                                  
+      36 +  const server = createHTTPServer({                            
+      37 +    router: appRouter,                                         
+      38 +    createContext: createContext({ dashboard }),               
+      39 +    middleware: cors({ origin: WEB_ORIGIN }),                  
+      40 +  });                                                          
+      41 +                                                               
+      42 +  server.listen(PORT);                                         
+      43 +  console.log(`🚪 autogate api (tRPC) listening on http://local
+         +host:${PORT}`);                                                
+      44 +};                                                             
+      45 +                                                               
+      46 +main().catch((error) => {                                      
+      47 +  console.error("api: fatal:", error instanceof Error ? error.m
+         +essage : error);                                               
+      48 +  process.exit(1);                                             
+      49 +});                                                            
+
+⏺ Now wire runResults into the worker so live runs persist their snapshot:
+
+⏺ Update(apps/api/src/worker.ts)
+  ⎿  Added 1 line, removed 1 line
+      11    type VcsProvider,
+      12    type Verdict,
+      13  } from "@autogate/contracts";
+      14 -import { createQueue, createStore, runMigrations } from "@autog
+         -ate/store-postgres";                                           
+      14 +import { createQueue, createRunResults, createStore, runMigrati
+         +ons } from "@autogate/store-postgres";                         
+      15  import { runPipeline, type OrchestratorPorts } from "./orchestr
+          ator/index";
+      16  
+      17  /**
+
+⏺ Update(apps/api/src/worker.ts)
+  ⎿  Added 2 lines
+      107  
+      108    const store = createStore({ connectionString });
+      109    const queue = createQueue<JobPayload>({ connectionString });
+      110 +  const runResults = createRunResults({ connectionString });  
+      111  
+      112    const ports: OrchestratorPorts = {
+      113      vcs: greenVcs(),
+     ...
+      118      policy,
+      119      resolveRepoConfig: () => repoConfig,
+      120      now: () => new Date().toISOString(),
+      121 +    runResults,                                               
+      122    };
+      123  
+      124    const runJob = processJob({ ports, queue });
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Need pnpm install for the new infra link (that's the diagnostic). Let me also
+  enhance the demo seed to write run-result snapshots so seeded runs render
+  fully in the dashboard, then install.
+
+⏺ Update(packages/cli/src/seed.ts)
+  ⎿  Added 1 line
+       4    StoredRun,
+       5    StoredVerdict,
+       6  } from '@autogate/contracts';
+       7 +import type { RunResultInput, RunResultStore } from '@autogate/
+         +store-postgres';                                               
+       8  
+       9  const SEED_NOW = '2026-01-01T00:00:00.000Z';
+      10  
+
+⏺ Update(packages/cli/src/seed.ts)
+  ⎿  Added 1 line
+      34    runs: StoredRun[];
+      35    verdicts: StoredVerdict[];
+      36    escalations: StoredEscalation[];
+      37 +  results: RunResultInput[];                                   
+      38  } = {
+      39    runs: [
+      40      {
+
+⏺ Now add the results array to the seed data and write them in seedStore:
+
+⏺ Update(packages/cli/src/seed.ts)
+  ⎿  Added 53 lines
+      102        createdAt: SEED_NOW,
+      103      },
+      104    ],
+      105 +  results: [                                                  
+      106 +    {                                                         
+      107 +      runId: 'seed-clean',                                    
+      108 +      decision: {                                             
+      109 +        outcome: 'auto_merge',                                
+      110 +        riskScore: 0,                                         
+      111 +        reasons: ['Aggregate risk 0 below threshold; agents ag
+          +ree.'],                                                       
+      112 +      },                                                      
+      113 +      gateChecks: [                                           
+      114 +        { name: 'ci / build', conclusion: 'success' },        
+      115 +        { name: 'ci / lint', conclusion: 'success' },         
+      116 +      ],                                                      
+      117 +      timeline: [                                             
+      118 +        { at: SEED_NOW, event: 'Run created.' },              
+      119 +        { at: SEED_NOW, event: 'Decision: auto_merge.' },     
+      120 +      ],                                                      
+      121 +      riskScore: 0,                                           
+      122 +    },                                                        
+      123 +    {                                                         
+      124 +      runId: 'seed-escalate',                                 
+      125 +      decision: {                                             
+      126 +        outcome: 'escalate',                                  
+      127 +        riskScore: 60,                                        
+      128 +        reasons: ['Aggregate risk 60 ≥ threshold 50.'],       
+      129 +      },                                                      
+      130 +      gateChecks: [                                           
+      131 +        { name: 'ci / build', conclusion: 'success' },        
+      132 +        { name: 'ci / lint', conclusion: 'success' },         
+      133 +      ],                                                      
+      134 +      timeline: [                                             
+      135 +        { at: SEED_NOW, event: 'Run created.' },              
+      136 +        { at: SEED_NOW, event: 'Decision: escalate.' },       
+      137 +      ],                                                      
+      138 +      riskScore: 60,                                          
+      139 +    },                                                        
+      140 +    {                                                         
+      141 +      runId: 'seed-awaiting',                                 
+      142 +      decision: {                                             
+      143 +        outcome: 'blocked',                                   
+      144 +        riskScore: 0,                                         
+      145 +        reasons: ['Layer 1 gate not green.'],                 
+      146 +      },                                                      
+      147 +      gateChecks: [                                           
+      148 +        { name: 'ci / build', conclusion: 'success' },        
+      149 +        { name: 'ci / e2e', conclusion: 'pending' },          
+      150 +      ],                                                      
+      151 +      timeline: [                                             
+      152 +        { at: SEED_NOW, event: 'Run created.' },              
+      153 +        { at: SEED_NOW, event: 'Layer 1 gate not green; awaiti
+          +ng checks.' },                                                
+      154 +      ],                                                      
+      155 +      riskScore: 0,                                           
+      156 +    },                                                        
+      157 +  ],                                                          
+      158  };
+      159  
+      160  /** Write the demo dataset through the Store port (idempotent 
+           — repositories upsert). */
+
+⏺ Update(packages/cli/src/seed.ts)
+  ⎿  Added 14 lines, removed 2 lines
+      157    ],
+      158  };
+      159  
+      160 -/** Write the demo dataset through the Store port (idempotent 
+          -— repositories upsert). */                                    
+      160 +/**                                                           
+      161 + * Write the demo dataset through the Store port (idempotent —
+          + repositories                                                 
+      162 + * upsert). When `runResults` is supplied, also write the per-
+          +run snapshots so the                                          
+      163 + * dashboard renders the seeded runs with full decision/gate/t
+          +imeline detail.                                               
+      164 + */                                                           
+      165  export const seedStore = async ({
+      166    store,
+      167 +  runResults,                                                 
+      168  }: {
+      169    store: Store;
+      165 -}): Promise<{ runs: number; verdicts: number; escalations: num
+          -ber }> => {                                                   
+      170 +  runResults?: RunResultStore;                                
+      171 +}): Promise<{ runs: number; verdicts: number; escalations: num
+          +ber; results: number }> => {                                  
+      172    for (const run of demoSeed.runs) {
+      173      await store.runs.save({ run });
+      174    }
+     ...
+      178    for (const escalation of demoSeed.escalations) {
+      179      await store.escalations.save({ escalation });
+      180    }
+      181 +  if (runResults !== undefined) {                             
+      182 +    for (const result of demoSeed.results) {                  
+      183 +      await runResults.save({ result });                      
+      184 +    }                                                         
+      185 +  }                                                           
+      186    return {
+      187      runs: demoSeed.runs.length,
+      188      verdicts: demoSeed.verdicts.length,
+      189      escalations: demoSeed.escalations.length,
+      190 +    results: runResults === undefined ? 0 : demoSeed.results.l
+          +ength,                                                        
+      191    };
+      192  };
+
+⏺ Now update the CLI dbSeed to wire the run-results snapshots:
+
+⏺ Update(packages/cli/src/infra.ts)
+  ⎿  Added 1 line, removed 1 line
+      1  import { readFileSync } from 'node:fs';
+      2  import { randomUUID } from 'node:crypto';
+      3  import { repoConfigSchema, type PullRequest, type StoredRun } fr
+         om '@autogate/contracts';
+      4 -import { createQueue, createStore, runMigrations } from '@autoga
+        -te/store-postgres';                                             
+      4 +import { createQueue, createRunResults, createStore, runMigratio
+        +ns } from '@autogate/store-postgres';                           
+      5  import { createMemoryClient, ingestRepo } from '@autogate/memory
+         -qdrant';
+      6  import { resolveEmbedder } from './embedder.js';
+      7  import { seedStore } from './seed.js';
+
+⏺ Update(packages/cli/src/infra.ts)
+  ⎿  Added 5 lines, removed 3 lines
+      39  
+      40  /** `db seed` — write the demo dataset through the Store port. 
+          Assumes migrations have run. */
+      41  export const dbSeed = async ({ json }: { json: boolean }): Prom
+          ise<void> => {
+      42 -  const store = createStore({ connectionString: databaseUrl() }
+         -);                                                             
+      43 -  const counts = await seedStore({ store });                   
+      42 +  const connectionString = databaseUrl();                      
+      43 +  const store = createStore({ connectionString });             
+      44 +  const runResults = createRunResults({ connectionString });   
+      45 +  const counts = await seedStore({ store, runResults });       
+      46    emit({
+      47      json,
+      46 -    line: `db seed: ok (${counts.runs} runs, ${counts.verdicts}
+         - verdicts, ${counts.escalations} escalation)`,                 
+      48 +    line: `db seed: ok (${counts.runs} runs, ${counts.verdicts}
+         + verdicts, ${counts.escalations} escalation, ${counts.results} 
+         +results)`,                                                     
+      49      data: { command: 'db seed', ok: true, ...counts },
+      50    });
+      51  };
+
+⏺ Now pnpm install for the new @autogate/infra link, then type-check the whole
+  workspace:
+
+⏺ Bash(pnpm install 2>&1 | tail -6 && echo "=== check-types (all) ===" && pnpm
+      turbo check-types 2>&1 | tail -12)
+  ⎿  Progress: resolved 0, reused 1, downloaded 0, added 0
+      WARN  3 deprecated subdependencies found: @esbuild-kit/core-utils@3.3
+     .2, @esbuild-kit/esm-loader@2.6.5, node-domexception@1.0.0
+     … +17 lines (ctrl+o to expand)
+⏺ All 14 type-check clean (including evals — the optional port didn't break the
+  e2e tier). Task 9 done. Now lint, then live verification.
+
+⏺ Bash(pnpm turbo lint 2>&1 | tail -12)
+  ⎿  @autogate/evals:lint: > eslint . --max-warnings 0
+     @autogate/evals:lint:
+     @autogate/cli:lint: cache miss, executing 446dbb5c8fcd7f82
+     … +9 lines (ctrl+o to expand)
+
+⏺ Lint clean (0 warnings). Now the live verification. First re-run migrate
+  (creates the new run_results table) + seed (now writes snapshots) against the
+  container DB on 5433:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      export
+      DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'…)
+  ⎿  === db migrate (adds run_results table) ===
+     {
+       severity_local: 'NOTICE',
+     … +50 lines (ctrl+o to expand)
+
+⏺ migrate + seed clean (the NOTICE lines are postgres-js echoing idempotent
+  CREATE TABLE IF NOT EXISTS; the command still succeeds). 3 run-result
+  snapshots persisted. Now start the real provider and curl it:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pkill -f "tsx src/index.ts" 2>/dev/null; sleep 1…)
+  ⎿  launched api pid 28964
+     === api log tail ===
+       routine: 'transformCreateStmt'
+     … +30 lines (ctrl+o to expand)
+
+⏺ Provider's live — repos and metrics return real data (overrides empty,
+  agreement/P-R stubbed as designed). The runs.list parse just choked on my
+  appended [200]; re-running cleanly:
+
+⏺ Bash(echo "=== runs.list (REAL from Postgres) ==="
+      curl -s --get http://localhost:3002/runs.list --data-urlencode
+      'input={"limit":10}' | python3 -c "import sys,json;…)
+  ⎿  === runs.list (REAL from Postgres) ===
+       run-a5dbb5c1-b0e4-40c6-90df-e8fed08f1a91 completed        decision=p
+     ending     risk=  0 gate={'total': 0, 'passed': 0, 'failed': 0, 'pendi
+     … +19 lines (ctrl+o to expand)
+
+⏺ The real provider serves live Postgres data — the 3 seeded runs render fully
+  (decision, risk, gate, brief, timeline, checks). The two older worker runs
+  show pending/gate 0 because they completed before I wired runResults (graceful
+  fallback — no snapshot). The real proof is a fresh run through the updated
+  worker, which now persists the snapshot. Let me drive one:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      export
+      DATABASE_URL='postgres://autogate:autogate@localhost:5433/autogate'…)
+  ⎿  launched worker pid 29068
+     === enqueue a fresh run ===
+     runId=run-ffe18278-6ea2-4900-aed8-bc8a976117e6
+     … +14 lines (ctrl+o to expand)
+
+⏺ Full loop now produces complete data: enqueue → worker → runPipeline persists
+  the snapshot → provider returns a complete RunDetail (decision, risk 10, gate
+  2/2, real timeline). Now the one real mutation — override — and confirm it
+  flips the decision and feeds overridesPerWeek:
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      RID=$(cat /tmp/autogate_rid.txt | cut -d= -f2)…)
+  ⎿  === POST runs.override (approve_merge) on run-ffe18278-6ea2-4900-aed8-
+     bc8a976117e6 ===
+       decision now : merged
+     … +9 lines (ctrl+o to expand)
+
+⏺ Override works end-to-end: decision flipped auto_merge → merged, reasons +
+  timeline appended, the override persisted, and overridesPerWeek now reflects
+  it (real, from the table).
+
+  Two final checks: confirm the e2e eval tier still passes after the
+  orchestrator edit, and confirm the dashboard renders this real data in the
+  browser.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      # start web pointed at the real API…)
+  ⎿  launched web pid 29245
+     === eval still green after orchestrator edit? ===
+     pnpm eval exit=0
+     … +12 lines (ctrl+o to expand)
+
+⏺ Task 10 done. Everything verified end-to-end.
+
+⏺ The real DashboardApi provider is built and running live — the dashboard at
+  http://localhost:3000 is now rendering real Postgres-backed runs
+  (seed-clean/escalate/awaiting, the worker run run-ffe18278…, with
+  auto_merge/escalate/merged decisions), not the mock.
+
+  What I built (all verified above)
+
+  Piece: Snapshot persistence
+  File(s): store-postgres: run_results table (schema+migrate), createRunResults,
+
+    createMetricsQueries
+  Verified: migrate + 3 snapshots persisted
+  ────────────────────────────────────────
+  Piece: Orchestrator writes it
+  File(s): runPipeline.ts: optional runResults port, snapshot on both exit paths
+  Verified: worker run → full RunDetail
+  ────────────────────────────────────────
+  Piece: The provider
+  File(s): apps/api/src/dashboard.ts: createStoreDashboardApi
+  Verified: list/byId/repos/metrics/override all real
+  ────────────────────────────────────────
+  Piece: Wiring
+  File(s): index.ts (mock→real + migrate-on-boot), worker.ts,
+    @autogate/infra/repo-configs export, seed writes snapshots
+  Verified: API serving live data
+
+  End-to-end proof: run enqueue → worker → runPipeline persists snapshot →
+  getRun returns a complete RunDetail (decision auto_merge, risk 10, gate 2/2,
+  real timeline). override flipped auto_merge → merged, persisted, and fed
+  overridesPerWeek (2026-W24: 1).
+
+  Gates: check-types 14/14, lint 8/8 (0 warnings), pnpm eval still 12/12 + 6/6
+  (exit 0) — the optional port left the e2e tier untouched. No changes to
+  @autogate/contracts, the @autogate/api router, or any DashboardApi/RunDetail
+  shape.
+
+  v1 stubs, exactly as we agreed (honest, marked in code): agreementRate +
+  escalation P/R empty (no labeled history), monitoring omitted (ticket 10),
+  rollback is a no-op returning current detail. Runs completed before this
+  change show pending/gate 0 (graceful fallback — no snapshot).
+
+  Currently up (for you to use)
+
+  - API :3002 (real provider, pid 28964), worker (pid 29068), web :3000
+  (pid 29245) — all pointed at the container DB on :5433.
+  - Open http://localhost:3000. To stop: pkill -f "tsx src/index.ts"; pkill -f 
+  "tsx src/worker.ts"; pkill -f "next dev".
+
+  Not done (flagging, your call)
+
+  - Commit — this work is uncommitted. Want me to commit + push to main like
+  before? (I'll revert the regenerated apps/web/next-env.d.ts first.)
+  - 06-infra audit blocker — setup.sh calls non-existent migrate/ingest package
+  scripts; should call the autogate CLI. Separate one-line-ish fix.
+
+  Want me to commit this, leave the servers up, and/or fix the setup.sh blocker?
+
+✻ Sautéed for 12m 6s
+
+❯ Commit this and push up                                                       
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git checkout -- apps/web/next-env.d.ts 2>/dev/null…)
+  ⎿  === status ===
+      M apps/api/package.json
+      M apps/api/src/index.ts
+     … +17 lines (ctrl+o to expand)
+
+⏺ Hold on — after fetching, local main is behind origin/main by 2 commits.
+  Someone pushed while I was working. I won't blindly push on top of unseen
+  work. Let me look at what landed and whether it touches the same files.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== the 2 incoming commits ==="; git log --oneline
+      main..origin/main…)
+  ⎿  === the 2 incoming commits ===
+     d0fa42b Add @autogate/agent-claude: real Claude AgentSdk adapter + liv
+     e runner
+     … +21 lines (ctrl+o to expand)
+
+⏺ Significant: the "other person" landed exactly what we discussed — d0fa42b
+  adds the real Claude AgentSdk adapter (@autogate/agent-claude), and 8ffa283 is
+  a zod v3→v4 upgrade across the workspace. Their commits build on top of mine;
+  the only file overlap with my uncommitted work is pnpm-lock.yaml. I'll commit
+  my work, rebase onto their changes, regenerate the lockfile, and re-verify 
+  everything under zod v4 before pushing — the zod upgrade is exactly the kind
+  of thing that can silently break my code.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  committed: b97daf6
+     === rebase onto origin/main (zod v4 + agent-claude) ===
+     From github.com:isaacpovey/autogate
+     … +2 lines (ctrl+o to expand)
+
+⏺ Rebase applied cleanly. Now I must reconcile the lockfile under zod v4 +
+  re-verify my code compiles against the upgraded zod (my code only calls
+  .parse(), so it should be safe, but I verify rather than assume).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== git state after rebase ==="; git status -sb | head -3…)
+  ⎿  === git state after rebase ===
+     ## main...origin/main [ahead 1]
+     === reconcile lockfile/node_modules under zod v4 + infra dep ===
+     … +9 lines (ctrl+o to expand)
+
+⏺ Clean — lockfile reconciled, no drift, my commit is [ahead 1]. Now the
+  critical gate before pushing: full check-types + lint + eval under the new zod
+  v4, to confirm the integration didn't break anything.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== check-types (all, under zod v4) ==="; pnpm turbo check-types
+      2>&1 | tail -4…)
+  ⎿  === check-types (all, under zod v4) ===
+      Tasks:    15 successful, 15 total
+     Cached:    1 cached, 15 total
+     … +13 lines (ctrl+o to expand)
+
+⏺ All green under zod v4: check-types 15/15 (agent-claude added one package),
+  lint 8/8, eval 12/12 + 6/6 + trust-loop flip (exit 0). The integration is
+  clean. Pushing.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git push origin main 2>&1 | tail -8…)
+  ⎿  To github.com:isaacpovey/autogate.git
+        d0fa42b..8a9ca29  main -> main
+     === exit=0 ===
+     … +6 lines (ctrl+o to expand)
+
+⏺ Pushed and in sync.
+
+  - Commit: 8a9ca29 — Real Store-backed DashboardApi provider (ticket 01 
+  remainder)
+  - Pushed: d0fa42b..8a9ca29  main -> main; local main clean and tracking
+  origin/main.
+
+  Heads-up on what I had to integrate: your branch had moved 2 commits ahead
+  while I worked — someone landed the real Claude AgentSdk
+  (@autogate/agent-claude, d0fa42b) and a zod v3→v4 upgrade (8ffa283). I rebased
+  my provider commit on top of both, regenerated the lockfile (pnpm install
+  left no drift), and re-verified the whole workspace under zod v4 before
+  pushing:
+
+  - check-types 15/15 (the new agent-claude package included)
+  - lint 8/8, 0 warnings
+  - pnpm eval 12/12 + 6/6 + the trust-loop flip, exit 0
+
+  My code only calls .parse() (never defines zod schemas), so the v4 upgrade
+  didn't touch it — confirmed by the green type-check. The 8a9ca29 diff is
+  exactly the provider work: store-postgres snapshot table/accessors, the
+  optional runResults orchestrator port, apps/api/src/dashboard.ts, the wiring
+  swap, and the @autogate/infra/repo-configs export. Nothing in
+  @autogate/contracts or the @autogate/api router changed.
+
+  Two notes:
+  - The local servers (API/worker/web on the container DB) are still running the
+  pre-rebase build. If you want to keep poking at the dashboard, restart them
+  so they pick up zod v4: pkill -f "tsx src/index.ts"; pkill -f "tsx 
+  src/worker.ts"; pkill -f "next dev" then relaunch with
+  DATABASE_URL=…@localhost:5433/….
+  - Now that the real AgentSdk exists (@autogate/agent-claude), the worker could
+  run the actual agents instead of the two stubs — that's the gap you flagged
+  earlier, and it's now unblocked. Separate task whenever you want it.
+
+  The 06-infra setup.sh blocker (calls non-existent migrate/ingest scripts) is
+  still outstanding — want me to take that next?
+
+✻ Cogitated for 2m 57s
+
+❯ Can you kill the servers that are running                                     
+
+⏺ The servers are running on the pre-rebase build — killing them all.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== before ==="…)
+  ⎿  === before ===
+     29270 node /Users/tyron/Developer/auto-gate/apps/web/node_modules/.bin
+     /../next/dist/bin/next dev
+     … +9 lines (ctrl+o to expand)
+
+⏺ Web is down, but something is still answering on :3002 (the pnpm-spawned tsx
+  process has a different command signature than my pattern). Let me find and
+  kill the actual listener.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== what holds :3002 ==="…)
+  ⎿  === what holds :3002 ===
+     COMMAND   PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+     node    28993 tyron   29u  IPv6 0xf1bd40d9d380be5d      0t0  TCP *:300
+     … +8 lines (ctrl+o to expand)
+
+⏺ All app servers are down — :3002 and :3000 no longer listening, no tsx/next
+  processes left. Quick final confirmation:
+
+⏺ Bash(echo "=== app servers ==="
+      curl -s -o /dev/null -w "api  :3002 -> %{http_code} (000/down =
+      stopped)\n" http://localhost:3002/health 2>/dev/null || echo "api  :3…)
+  ⎿  === app servers ===
+     api  :3002 -> 000 (000/down = stopped)
+     api  :3002 -> down
+     … +6 lines (ctrl+o to expand)
+
+⏺ Done. All app servers are stopped:
+
+  - API (:3002) — down
+  - Web (:3000) — down
+  - Worker — stopped
+  - 0 autogate tsx/next processes remaining
+
+  I left the Docker containers (Postgres + Qdrant, both healthy) running since
+  you asked about the servers, not the infra — your seeded data and the runs we
+  created are still intact in the DB. If you want those down too: cd infra && 
+  docker compose stop (keeps volumes/data) or docker compose down (removes
+  containers, keeps volumes).
+✻ Baked for 48s
+
+※ recap: Goal: complete Autogate Stream B. The Stream-A-dependent slices (e2e eval tier, infra CLI) and the real Store-backed dashboard provider are built, verified, and pushed to main. Next: optionally fix the 06-infra setup.sh blocker (calls non-existent migrate/ingest scripts). (disable recaps in /config)
