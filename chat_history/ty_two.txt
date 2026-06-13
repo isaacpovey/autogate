@@ -1,0 +1,2075 @@
+╭─── Claude Code v2.1.177 ─────────────────────────────────────────────────────╮
+│                                      │ Tips for getting started              │
+│           Welcome back Ty!           │ Run /init to create a CLAUDE.md file… │
+│                                      │ ───────────────────────────────────── │
+│                ▐▛███▜▌               │ What's new                            │
+│               ▝▜█████▛▘              │ Session titles are now generated in … │
+│                 ▘▘ ▝▝                │ Added `footerLinksRegexes` setting f… │
+│                                      │ Improved Bedrock credential caching:… │
+│   Opus 4.8 · Claude Team · Askable   │ /release-notes for more               │
+│        ~/Developer/auto-gate         │                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ /effort                                                                       
+  ⎿  Set effort level to ultracode (this session only): xhigh + dynamic workflow
+     orchestration
+
+❯ Fetch this design file, read its readme, and implement the relevant aspects   
+  of the design. https://api.anthropic.com/v1/design/h/U_AIt9HUQNw2zIuWJLZ58Q?o 
+  pen_file=Autogate.html                                                        
+  Implement: Autogate.html                                                      
+
+⏺ I'll start by loading the design-sync tool so I can fetch the design file, and
+  explore the project structure in parallel.
+
+  Listed 1 directory (ctrl+o to expand)
+
+⏺ The DesignSync tool reads claude.ai/design projects. The URL contains a
+  project/share ID U_AIt9HUQNw2zIuWJLZ58Q. Let me list the files in that design
+  project and also list my writable projects.
+
+⏺ Design: List project files(List project files)
+  ⎿  Error: Design API ListFiles failed: HTTP 400 
+     {"code":"invalid_argument","message":"validation error: project_id: value 
+     must be a valid UUID","details":[{"type":"buf.validate.Violations","value":
+     "ClkSC3N0cmluZy51dWlkGhp2YWx1ZSBtdXN0IGJlIGEgdmFsaW
+
+⏺ Design: Read project metadata(Read project metadata)
+  ⎿  Error: Design API GetProject failed: HTTP 400 
+     {"code":"invalid_argument","message":"validation error: project_id: value 
+     must be a valid UUID","details":[{"type":"buf.validate.Violations","value":
+     "ClkSC3N0cmluZy51dWlkGhp2YWx1ZSBtdXN0IGJlIGEgdmFsaW
+
+⏺ The ID is a share hash, not a UUID — this is a hosted share link, not a
+  project I have direct DesignSync access to. Let me fetch the URL directly.
+
+⏺ Fetch(https://api.anthropic.com/v1/design/h/U_AIt9HUQNw2zIuWJLZ58Q?open_file=A
+       utogate.html)
+  ⎿  Received 1.5MB (200 OK)
+
+⏺ The endpoint returned a 1.5MB gzip archive. Let me decompress and inspect it.
+
+⏺ Bash(cd /Users/tyron/.claude/projects/-Users-tyron-Developer-auto-gate/8081fb5
+      b-6786-4d23-8a98-8add50ffc427/tool-results/
+      BIN=webfetch-1781390058643-s0g0cg.bin…)
+  ⎿  === file type ===
+     webfetch-1781390058643-s0g0cg.bin: gzip compressed data, original size
+      modulo 2^32 2854912
+     … +6 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to /Users/tyron/Developer/auto-gate
+
+⏺ It's a gzipped tar archive. Let me extract it to a temp directory and inspect
+  the contents.
+
+⏺ Bash(BIN=/Users/tyron/.claude/projects/-Users-tyron-Developer-auto-gate/8081fb
+      5b-6786-4d23-8a98-8add50ffc427/tool-results/webfetch-1781390058643-s0g0cg.
+      bin
+      DEST=/tmp…)
+  ⎿  === tree (depth 3) ===
+     /tmp/autogate-design
+     /tmp/autogate-design/autogate-app
+     … +12 lines (ctrl+o to expand)
+
+⏺ Bash(DEST=/tmp/autogate-design
+      echo "=== FULL TREE ==="…)
+  ⎿  === FULL TREE ===
+     /tmp/autogate-design/autogate-app/chats/chat1.md
+     /tmp/autogate-design/autogate-app/project/_ds/askable-web-design-syste
+     … +71 lines (ctrl+o to expand)
+
+⏺ Now I have the full design. Let me read the README (as the user asked) plus
+  the core design files.
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ This is a rich design — an Autogate operations dashboard (release review
+  stream, run detail, stats/trust, settings) built as a React prototype on the
+  Askable design system. The README tells me to read the chat transcript for
+  intent and follow all imports. Let me read the remaining design files directly
+  (I need them verbatim to implement faithfully) and, in parallel, map the
+  existing codebase.
+
+⏺ Bash(DEST=/tmp/autogate-design/autogate-app
+      echo "=== chat1.md size ===" && wc -l "$DEST/chats/chat1.md"…)
+  ⎿  === chat1.md size ===
+          690 /tmp/autogate-design/autogate-app/chats/chat1.md
+     === app file sizes ===
+     … +32 lines (ctrl+o to expand)
+
+⏺ Let me read the intent (chat transcript), design-system foundations, and
+  shared primitives — while launching codebase exploration in parallel.
+
+  Read 3 files (ctrl+o to expand)
+⏺ Explore(Map auto-gate codebase structure) Sonnet 4.6
+  ⎿  Done (67 tool uses · 73.9k tokens · 3m 4s)
+  (ctrl+o to expand)
+
+⏺ I now have a clear picture: the design is the Autogate release-safety 
+  dashboard, and the codebase already has apps/web (Next.js 16 / React 19) wired
+  to a real tRPC API (runs.list/byId/override/rollback, metrics, repos) with
+  domain types that differ from the prototype's assumed API in a few important
+  ways. There's also a tickets/11-dashboard.md spec.
+
+  This is substantial creative work, so I'm invoking the brainstorming skill
+  before designing — and in parallel reading the dashboard ticket plus the
+  remaining design source I need verbatim.
+
+⏺ Skill(superpowers:brainstorming)
+  ⎿  Successfully loaded skill
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ I've now read the intent (the chat shows a fixed, heavily-iterated design —
+  the user already made all the visual decisions), the shared primitives, the
+  stream, and the run-detail hero. I also have the codebase map and ticket 11.
+  The visual design is locked — what's open is implementation scope and tech 
+  approach, which are conceptual decisions best handled in the terminal, so I'll
+  skip a visual companion.
+
+  Two decisions are genuinely yours and direction-setting. Let me ask them while
+  I finish reading the remaining design + integration files in parallel.
+
+⏺ User answered Claude's questions:
+  ⎿  · How much of the Autogate prototype should I build into apps/web? (Wired 
+     to the real tRPC API either way.) → Full instrument
+     · How should I implement the warm-graphite styling? The prototype uses a 
+     bespoke CSS-variable token system + inline styles (not shadcn-flavored). 
+     Ticket 11 nominally mentions Tailwind/shadcn. → Tailwind + shadcn/ui
+
+  Read 4 files (ctrl+o to expand)
+
+⏺ User chose Full instrument scope and Tailwind + shadcn/ui styling. Good — I'll
+  theme Tailwind v4 with the warm-graphite tokens and use heavily-restyled
+  shadcn primitives where they fit (Dialog for the confirm modal, Switch,
+  Slider, Tabs for the segmented control, Tooltip), with bespoke components for
+  the signature pieces (spine, verdict glyphs, run rows, charts). The lockup is
+  a 56k-token inline SVG — I'll copy the .svg asset directly rather than read
+  it.
+
+  Let me read the exact integration points so my design proposal is concrete:
+  the web scaffold, the tRPC wiring, and the brand-token CSS.
+
+  Read 8 files (ctrl+o to expand)
+
+⏺ The web scaffold is clean and modern (tRPC + TanStack Query, next/font/local,
+  RSC prefetch + useSuspenseQuery). No Tailwind yet — I'll add Tailwind v4.
+  Before I present the design, I need to confirm exactly what data flows to the
+  UI (the mock fixtures + authoritative contract types), since the prototype
+  invents fields the real API doesn't have. Let me read the mock dashboard, the
+  contract, and the router root.
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ I now have the complete picture — design intent, all prototype source, the
+  real contract types, the mock fixtures the UI will actually see, and the
+  existing web scaffold. Before writing anything, here's the design for your
+  approval. The visuals are locked (your prototype); what matters now is
+  architecture and how the prototype's richer view-model reconciles with the 
+  real API, which differs in several load-bearing ways.
+
+  Autogate dashboard — implementation design
+
+  1. Scope (confirmed)
+
+  Full instrument in apps/web, wired to the live tRPC API: app shell
+  (collapsible rail, topbar, dark/light, toast) · Open reviews (incident bar →
+  Needs you → In progress → Handled-by-system) · Run detail (brief, layered
+  evidence, reason-gated override/block, rollback, confirm modal, timeline) ·
+  Stats/Trust. Skipping Settings + My runs.
+
+  2. Architecture
+
+  - Route-based nav (my recommendation, replacing the prototype's in-memory view
+  state): / = Open reviews, /runs/[runId] = Run detail, /stats = Trust. Each
+  page is an RSC that prefetches its query then hydrates a client view with
+  useSuspenseQuery — the exact pattern already in app/page.tsx. Wins: shareable
+  run URLs, working back button, server prefetch. The rail/topbar live in a
+  client AppShell in the dashboard layout.
+  - Live freshness = polling + invalidation (no SSE exists yet; root.ts confirms
+  it's deferred). runs.list and the open runs.byId get a refetchInterval;
+  override/rollback mutations invalidate. The topbar live/reconnecting dot
+  reflects real query fetch/error status — not a faked blip.
+  - lib/view-model.ts: pure, unit-tested functions deriving everything the
+  prototype computed client-side (riskBand, effortBand, disagreement,
+  layerStance, grouping, incident detection, recorded-reason extraction) plus
+  the verdict/decision/status style maps. This is the TDD core.
+
+  3. Data reconciliation — the decisions I need you to confirm
+
+  The prototype invented fields the real API doesn't have. My mappings:
+
+  Decision: needs_human verdict (real) has no prototype equivalent
+  How I'll handle it: Render as the prototype's slate "inconclusive" treatment
+    (the --incon "absence of judgment" glyph), labeled needs  human.
+  Semantically
+     identical.
+  ────────────────────────────────────────
+  Decision: Run-detail evidence layers
+  How I'll handle it: Static = the real gateChecks (GitHub CI checks: name +
+    conclusion + link, per ticket 11) · AI = checks where layer==='ai'
+  (sourceId,
+     summary, expandable findings[]) · Monitoring = the monitoring panel + any
+    layer==='monitor' checks.
+  ────────────────────────────────────────
+  Decision: awaiting_checks status (new)
+  How I'll handle it: Folded into the In-progress tier; rows show gate progress
+    (gate.passed/total).
+  ────────────────────────────────────────
+  Decision: agreementRate.rate is 0–1 (real) not 0–100
+  How I'll handle it: Charts/topbar handle the real scale and date strings.
+  ────────────────────────────────────────
+  Decision: Stats trimmed to the real TrustMetrics
+  How I'll handle it: Keep: agreement-rate line chart, escalation
+    precision/recall callouts, overrides-per-week bar chart, a derived summary
+    strip. Drop the prototype's invented panels  (stacked "where changes go",
+    recent-rollbacks list, shipped/30d, median-TTM) — there's no API data, and
+    your own brief says don't invent data fields or analytics  panels.
+  ────────────────────────────────────────
+  Decision: Incident bar / in-production degrading
+  How I'll handle it: Derived from monitoring (merged + monitoring + not
+    rolled-back + rising errors). Dormant with today's mock fixtures, lights up
+    when real degrading data arrives.
+  ────────────────────────────────────────
+  Decision: Override "recorded reason"
+  How I'll handle it: The override mutation appends the reason to
+    decision.reasons + timeline; I surface that as the post-action
+    recorded-reason record.
+
+  4. Styling
+
+  Tailwind v4 + shadcn/ui (your choice), themed to fidelity: port tokens.css
+  into globals.css as the :root/[data-theme="light"] warm-graphite token layer,
+  exposed to Tailwind via @theme inline (so bg-raised, text-fg-2, border-line,
+  text-pass…). shadcn primitives — Dialog (confirm modal), Switch, Slider,
+  Tabs/ToggleGroup (segmented), Tooltip, Button — all restyled onto those tokens
+  so they read as the bespoke instrument, not default shadcn. Bespoke SVG stays
+  bespoke (spine, verdict glyphs, charts, emblem/lockup). Fonts: Bricolage 
+  Grotesque + Instrument Sans via next/font/local (TTFs are in the bundle).
+  Icons: lucide-react (the DS's canonical set). Theme defaults dark, persisted,
+  toggled via data-theme.
+
+  5. Testing
+
+  Vitest unit tests for view-model.ts (grouping, effort, disagreement, incident
+  detection, reason extraction, scale conversions); pnpm turbo check-types
+  green; renders against apps/api's mock across all fixture states (auto_merge,
+  escalate, awaiting_checks, running, rolled_back).
+
+  6. Out of scope
+
+  Settings, My runs, auth, real SSE, the dropped analytics panels.
+
+  ---
+  The consequential calls are in §3 (especially: route-based nav, Stats trimmed
+  to real metrics, Static-layer = gateChecks) and the polling-not-SSE in §2.
+  Does this direction look right, or do you want to adjust any of it before I
+  write up the spec?
+
+✻ Worked for 11m 9s
+
+❯ This looks right. Lets use the nextjs routing system. The rest looks good     
+
+⏺ Approved — route-based Next.js routing it is. Now I'll write the spec doc,
+  self-review it, and hand it to you for a read before we move to the
+  implementation plan.
+
+  Let me confirm the specs directory and conventions first.
+
+  Read 1 file, listed 1 directory (ctrl+o to expand)
+
+⏺ Format is clear. Writing the dashboard spec now.
+
+⏺ Write(docs/superpowers/specs/2026-06-13-autogate-dashboard-design.md)
+  ⎿  Wrote 128 lines to
+     docs/superpowers/specs/2026-06-13-autogate-dashboard-design.md
+       2 # Autogate — Dashboard ("Full Instrument") Design
+       3 **Date:** 2026-06-13
+       5 **Source design:** Claude Design handoff bundle `Autogate.html` 
+         (warm-graphite release-safety instrument; React/HTML prototype).
+         g them into `apps/web` wired to the real tRPC `DashboardApi`.tin
+       6 **Scope of this doc:** the implementation design — architecture,
+         ling, and testing. Approved 2026-06-13. component inventory, sty
+       7 
+       9 ---
+      10 ## 1. Goal & constraints
+     … +266 lines (ctrl+o to expand)
+
+⏺ Spec written. Self-review (placeholder/consistency/scope/ambiguity): clean —
+  routes in §2.1 match the component groups in §4, the §3 reconciliations map
+  1:1 to the view-model functions in §2.4, and the Stats "drop" list is
+  consistent across §1/§3/§4. No placeholders or contradictions.
+
+  I'm on main, so I'll create a feature branch and commit the spec there
+  (keeping main clean).
+
+⏺ Bash(git checkout -b feat/11-dashboard && git add
+      docs/superpowers/specs/2026-06-13-autogate-dashboard-design.md && git
+      commit -q -m "$(cat <<'EOF'
+      Add Autogate dash…)
+  ⎿  Switched to a new branch 'feat/11-dashboard'
+     ---committed on---
+     feat/11-dashboard
+
+⏺ Spec committed to feat/11-dashboard:
+
+  📄 docs/superpowers/specs/2026-06-13-autogate-dashboard-design.md
+
+  It covers the architecture (route-based surfaces + AppShell + polling), the
+  full prototype→API reconciliation table (§3 — the load-bearing decisions:
+  needs_human→slate, Static=gateChecks, awaiting_checks tier, agreement 0–1
+  scaling, Stats trimmed to real metrics), the view-model module, the component
+  inventory, Tailwind v4 + shadcn token theming, and the testing/DoD.
+
+  Please give it a read and let me know if you want any changes before I turn it
+  into the implementation plan. Once you're happy, I'll invoke the
+  writing-plans skill to break it into ordered, verifiable steps — and given
+  ultracode is on, I'll execute the build with a workflow (TDD on the view-model
+  core, then fan out the independent component groups).
+
+✻ Cooked for 2m 13s
+
+❯ it looks good, but lets just work on main.                                    
+⏺ Bash(git checkout main && git merge --ff-only feat/11-dashboard && git branch
+      -d feat/11-dashboard && echo "---now on---" && git branch --show-current
+      && git log --o…)
+  ⎿  Switched to branch 'main'
+     Your branch is up to date with 'origin/main'.
+     Updating 8a9ca29..7bc029b
+     … +10 lines (ctrl+o to expand)
+
+⏺ On main now, spec is the latest commit. Spec approved — transitioning to
+  implementation planning.
+
+⏺ Skill(superpowers:writing-plans)
+  ⎿  Successfully loaded skill
+
+⏺ I'm using the writing-plans skill to create the implementation plan.
+
+  First, let me map the file structure and lock in a few setup specifics
+  (Tailwind v4 + shadcn for Next 16 / React 19), then write a detailed TDD plan.
+  Let me confirm the web tsconfig and that the prototype fonts are copyable.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== web tsconfig ===" && cat apps/web/tsconfig.json…)
+  ⎿  === web tsconfig ===
+     {
+       "extends": "@repo/typescript-config/nextjs.json",
+     … +47 lines (ctrl+o to expand)
+
+⏺ Everything's confirmed. Bricolage is a single variable TTF; Instrument Sans
+  ships weighted statics; the lockup is a 97KB SVG (I'll recolor to
+  currentColor). The /tmp extraction is ephemeral, so the plan's first task
+  copies the prototype source + fonts + lockup into the repo as a stable
+  transcription reference. Writing the plan now.
+
+⏺ Bash(mkdir -p docs/superpowers/plans && echo "ready"
+      echo "=== next.config ===" && cat apps/web/next.config.* 2>/dev/null)
+  ⎿  ready
+     === next.config ===
+     /** @type {import('next').NextConfig} */
+     … +10 lines (ctrl+o to expand)
+
+⏺ Now I'll write the full implementation plan.
+
+⏺ Write(docs/superpowers/plans/2026-06-13-autogate-dashboard.md)
+  ⎿  Wrote 1116 lines to
+     docs/superpowers/plans/2026-06-13-autogate-dashboard.md
+      2 # Autogate Dashboard Implementation Plan
+      3 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:su
+        plans to implement this plan task-by-task. Steps use checkbox (`-
+         [ ]`) syntax for tracking.
+      5 **Goal:** Port the Claude Design "Autogate" warm-graphite instrum
+        ent into `apps/web` — app shell + Open reviews + Run detail + Sta
+      6 ts — wired to the live tRPC `DashboardApi`.
+      7 **Architecture:** Next.js 16 App Router. Three route-based surfac
+         renders a client `AppShell` (rail + topbar + toast). RSC prefetc
+        h → `useSuspenseQuery`; polling + invalidation for fre
+     … +1630 lines (ctrl+o to expand)
+
+⏺ Plan written and self-reviewed (spec coverage + type-consistency + placeholder
+  scan all resolved in the closing notes). Let me commit it.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add docs/superpowers/plans/2026-06-13-autogate-dashboard.md…)
+  ⎿  c705043 Add Autogate dashboard implementation plan (ticket 11)
+     7bc029b Add Autogate dashboard implementation design (ticket 11)
+     8a9ca29 Real Store-backed DashboardApi provider (ticket 01 remainder)
+
+⏺ Plan complete and committed to
+  docs/superpowers/plans/2026-06-13-autogate-dashboard.md (49 tasks across 9
+  phases).
+
+  You asked me to implement, and ultracode is on, so rather than stopping to
+  pick an execution mode I'll proceed with the recommended subagent-driven
+  approach: foundational phases (vendor reference → build setup → TDD view-model
+  → routes skeleton) built and verified sequentially, then the independent
+  component groups (primitives, stream, run-detail, stats) fanned out in
+  parallel via a workflow, with me integrating and running the
+  typecheck/test/lint gates between phases. Interrupt anytime if you want to
+  steer.
+
+  Let me load the execution discipline.
+
+⏺ Skill(superpowers:subagent-driven-development)
+  ⎿  Successfully loaded skill
+
+⏺ I have explicit consent to work on main. Now executing the plan. Given the
+  scale (49 tasks) and that I already hold the complete design in context, I'll
+  drive the cohesive foundation directly (setup, tokens, TDD view-model, shell,
+  routes) running the real compiler/test gates between phases, and fan out the
+  independent component transcriptions in parallel — capturing the fresh-context
+  + review-gate value without 150 sequential dispatches. Let me set up phase
+  tracking and verify the reference source is still available.
+
+⏺ Bash(test -d /tmp/autogate-design/autogate-app && echo "REFERENCE PRESENT" ||
+      echo "REFERENCE MISSING — re-fetch needed"
+      ls /tmp/autogate-design/autogate-app/project…)
+  ⎿  REFERENCE PRESENT
+     7
+
+⏺ Reference is present. Creating phase-level tracking, then executing.
+⏺ Phase tracking set up. Starting Phase 0 — vendoring the reference + fonts.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      SRC=/tmp/autogate-design/autogate-app…)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Dont do tdd. Just get it working and ripping                                  
+
+⏺ Got it — dropping TDD and the review ceremony. I'll build directly and fast,
+  verifying with the compiler + a live render rather than tests, committing at
+  phase boundaries. Let me note this preference so I don't relapse, then rip.
+
+  Recalled 1 memory, wrote 2 memories (ctrl+o to expand)
+
+⏺ Now ripping. Phase 0 + Phase 1 setup — fonts/lockup, then dependencies (no
+  vitest — skipping tests per your call).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      SRC=/tmp/autogate-design/autogate-app…)
+  ⎿  === fonts ===
+     BricolageGrotesque.ttf
+     InstrumentSans-Bold.ttf
+     … +5 lines (ctrl+o to expand)
+
+⏺ Fonts + lockup in place. Now installing dependencies (Tailwind v4, shadcn
+  deps, lucide, contracts).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web add tailwindcss@^4 @tailwindcss/postcss@^4 lucide-react
+      class-variance-authority clsx tailwind-merge tw-an…)
+  ⎿  Progress: resolved 30, reused 0, downloaded 0, added 0
+     Progress: resolved 31, reused 0, downloaded 0, added 0
+     Progress: resolved 32, reused 0, downloaded 0, added 0
+     … +26 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ Network works. Adding the contracts workspace dep.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web add @autogate/contracts@workspace:* 2>&1 | tail -8…)
+  ⎿  (eval):2: no matches found: @autogate/contracts@workspace:*
+     === web deps now ===
+     @autogate/api
+     … +15 lines (ctrl+o to expand)
+
+⏺ Shell glob ate the * — quoting it.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web add '@autogate/contracts@workspace:*' 2>&1 | tail -6…)
+  ⎿  Progress: resolved 41, reused 0, downloaded 0, added 0
+     Progress: resolved 42, reused 0, downloaded 0, added 0
+     Progress: resolved 43, reused 0, downloaded 0, added 0
+     … +6 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+⏺ Deps in. Now writing the config + token foundation (postcss, next.config,
+  tsconfig alias, cn, components.json, the warm-graphite globals.css, and the
+  fonts/theme layout.tsx).
+
+⏺ Write(apps/web/postcss.config.mjs)
+  ⎿  Wrote 7 lines to apps/web/postcss.config.mjs
+      1 const config = {
+      2   plugins: {
+      3     "@tailwindcss/postcss": {},
+      4   },
+      5 };
+      6 
+      7 export default config;
+
+⏺ Update(apps/web/next.config.js)
+  ⎿  File must be read first
+
+⏺ Update(apps/web/tsconfig.json)
+  ⎿  File must be read first
+
+⏺ Write(apps/web/lib/utils.ts)
+  ⎿  Wrote 6 lines to apps/web/lib/utils.ts
+      1 import { clsx, type ClassValue } from "clsx";
+      2 import { twMerge } from "tailwind-merge";
+      3 
+      4 export function cn(...inputs: ClassValue[]) {
+      5   return twMerge(clsx(inputs));
+      6 }
+
+⏺ Write(apps/web/components.json)
+  ⎿  Wrote 21 lines to apps/web/components.json
+       1 {
+       2   "$schema": "https://ui.shadcn.com/schema.json",
+       3   "style": "new-york",
+       4   "rsc": true,
+       5   "tsx": true,
+       6   "tailwind": {
+       7     "config": "",
+       8     "css": "app/globals.css",
+       9     "baseColor": "neutral",
+      10     "cssVariables": true,
+     … +11 lines (ctrl+o to expand)
+
+⏺ The two edits need a Read-tool read first (I'd only cat'd them). Reading then
+  editing.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Update(apps/web/next.config.js)
+  ⎿  Added 1 line, removed 1 line
+      3    // `@autogate/api` ships TypeScript source (no build step), so
+          Next must
+      4    // transpile it. We only ever import the `AppRouter` *type* fr
+         om it, but the
+      5    // module graph still needs to resolve.
+      6 -  transpilePackages: ["@autogate/api"],                         
+      6 +  transpilePackages: ["@autogate/api", "@autogate/contracts"],  
+      7  };
+      8  
+      9  export default nextConfig;
+
+⏺ Update(apps/web/tsconfig.json)
+  ⎿  Added 3 lines, removed 1 line
+       6          "name": "next"
+       7        }
+       8      ],
+       9 -    "strictNullChecks": true                                   
+       9 +    "strictNullChecks": true,                                  
+      10 +    "baseUrl": ".",                                            
+      11 +    "paths": { "@/*": ["./*"] }                                
+      12    },
+      13    "include": [
+      14      "**/*.ts",
+
+⏺ Now the token foundation — globals.css (warm-graphite layer + Tailwind theme)
+  and layout.tsx (fonts + no-flash theme).
+
+⏺ Write(apps/web/app/globals.css)
+  ⎿  Added 118 lines, removed 37 lines
+        1 -:root {                                                       
+        2 -  --background: #ffffff;                                      
+        3 -  --foreground: #171717;                                      
+        4 -}                                                             
+        1 +@import "tailwindcss";                                        
+        2 +@import "tw-animate-css";                                     
+        3  
+        6 -@media (prefers-color-scheme: dark) {                         
+        7 -  :root {                                                     
+        8 -    --background: #0a0a0a;                                    
+        9 -    --foreground: #ededed;                                    
+       10 -  }                                                           
+        4 +/* ===== Warm-graphite token layer (ported from the Autogate p
+          +rototype) ===== */                                            
+        5 +:root,                                                        
+        6 +[data-theme="dark"] {                                         
+        7 +  --bg: #1a1816; --bg-rail: #151311; --bg-raised: #211e1a; --b
+          +g-raised-2: #262320;                                          
+        8 +  --bg-hover: rgba(255,248,236,.035); --bg-active: rgba(255,24
+          +8,236,.06);                                                   
+        9 +  --lit-edge: inset 0 1px 0 0 rgba(255,244,230,.06);          
+       10 +  --lit-edge-strong: inset 0 1px 0 0 rgba(255,244,230,.09);   
+       11 +  --fg: #ece6dd; --fg-2: #b8afa2; --fg-3: #8a8174; --fg-muted:
+          + #6a6256; --fg-faint: #4e4840;                                
+       12 +  --line: rgba(255,244,228,.075); --line-2: rgba(255,244,228,.
+          +11); --line-strong: rgba(255,244,228,.16);                    
+       13 +  --brand: #fb5153; --brand-hover: #ff797b; --brand-tint: rgba
+          +(251,81,83,.12); --brand-tint-2: rgba(251,81,83,.20);         
+       14 +  --pass: #8fb07a; --pass-dim: #6e8961; --pass-tint: rgba(143,
+          +176,122,.13); --pass-edge: rgba(143,176,122,.55);             
+       15 +  --warn: #cda552; --warn-dim: #9c7e40; --warn-tint: rgba(205,
+          +165,82,.13); --warn-edge: rgba(205,165,82,.6);                
+       16 +  --fail: #cc6b54; --fail-dim: #9e5341; --fail-tint: rgba(204,
+          +107,84,.14); --fail-edge: rgba(204,107,84,.65);               
+       17 +  --incon: #7e8a98; --incon-dim: #616b77; --incon-tint: rgba(1
+          +26,138,152,.13); --incon-edge: rgba(126,138,152,.5);          
+       18 +  --info: #6e92bd; --info-dim: #54718f; --info-tint: rgba(110,
+          +146,189,.11); --info-edge: rgba(110,146,189,.4);              
+       19 +  --effort: #9c8fb0; --effort-tint: rgba(156,143,176,.13);    
+       20 +  --spine-static: #7e8a98; --spine-ai: #9c8fb0; --spine-mon: #
+          +8a9e8e; --spine-rail: rgba(255,244,228,.10);                  
+       21 +  --shadow-pop: 0 18px 48px -12px rgba(0,0,0,.6), 0 4px 14px -
+          +4px rgba(0,0,0,.5);                                           
+       22  }
+       12 -                                                              
+       13 -html,                                                         
+       14 -body {                                                        
+       15 -  max-width: 100vw;                                           
+       16 -  overflow-x: hidden;                                         
+       23 +[data-theme="light"] {                                        
+       24 +  --bg: #f4f0ec; --bg-rail: #ebe6e0; --bg-raised: #fcfaf7; --b
+          +g-raised-2: #fff;                                             
+       25 +  --bg-hover: rgba(40,30,16,.035); --bg-active: rgba(40,30,16,
+          +.06);                                                         
+       26 +  --lit-edge: inset 0 1px 0 0 rgba(255,255,255,.8); --lit-edge
+          +-strong: inset 0 1px 0 0 rgba(255,255,255,.9);                
+       27 +  --fg: #211d18; --fg-2: #5c5447; --fg-3: #6e6557; --fg-muted:
+          + #8a8175; --fg-faint: #ada597;                                
+       28 +  --line: rgba(40,28,12,.10); --line-2: rgba(40,28,12,.14); --
+          +line-strong: rgba(40,28,12,.20);                              
+       29 +  --brand: #e0383a; --brand-hover: #fb5153; --brand-tint: rgba
+          +(224,56,58,.10); --brand-tint-2: rgba(224,56,58,.18);         
+       30 +  --pass: #5c7f47; --pass-dim: #6e8961; --pass-tint: rgba(92,1
+          +27,71,.12); --pass-edge: rgba(92,127,71,.5);                  
+       31 +  --warn: #a77b22; --warn-dim: #9c7e40; --warn-tint: rgba(167,
+          +123,34,.12); --warn-edge: rgba(167,123,34,.5);                
+       32 +  --fail: #ba4c36; --fail-dim: #9e5341; --fail-tint: rgba(186,
+          +76,54,.12); --fail-edge: rgba(186,76,54,.55);                 
+       33 +  --incon: #5e6b79; --incon-dim: #616b77; --incon-tint: rgba(9
+          +4,107,121,.12); --incon-edge: rgba(94,107,121,.45);           
+       34 +  --info: #3e6896; --info-dim: #54718f; --info-tint: rgba(62,1
+          +04,150,.09); --info-edge: rgba(62,104,150,.35);               
+       35 +  --effort: #6e6088; --effort-tint: rgba(110,96,136,.12);     
+       36 +  --spine-static: #5e6b79; --spine-ai: #6e6088; --spine-mon: #
+          +5c7159; --spine-rail: rgba(40,28,12,.12);                     
+       37 +  --shadow-pop: 0 18px 48px -12px rgba(60,40,20,.22), 0 4px 14
+          +px -4px rgba(60,40,20,.14);                                   
+       38  }
+       39  
+       19 -body {                                                        
+       20 -  color: var(--foreground);                                   
+       21 -  background: var(--background);                              
+       40 +/* ===== shadcn semantic vars → warm-graphite ===== */        
+       41 +:root, [data-theme="dark"], [data-theme="light"] {            
+       42 +  --background: var(--bg); --foreground: var(--fg);           
+       43 +  --card: var(--bg-raised); --card-foreground: var(--fg);     
+       44 +  --popover: var(--bg-raised-2); --popover-foreground: var(--f
+          +g);                                                           
+       45 +  --primary: var(--brand); --primary-foreground: #fff;        
+       46 +  --secondary: var(--bg-raised-2); --secondary-foreground: var
+          +(--fg);                                                       
+       47 +  --muted: var(--bg-raised); --muted-foreground: var(--fg-mute
+          +d);                                                           
+       48 +  --accent: var(--bg-active); --accent-foreground: var(--fg); 
+       49 +  --destructive: var(--fail); --destructive-foreground: #fff; 
+       50 +  --border: var(--line-2); --input: var(--line-2); --ring: var
+          +(--brand);                                                    
+       51 +  --radius: 0.5rem;                                           
+       52  }
+       53  
+       24 -* {                                                           
+       25 -  box-sizing: border-box;                                     
+       26 -  padding: 0;                                                 
+       27 -  margin: 0;                                                  
+       28 -}                                                             
+       54 +/* ===== Tailwind theme: expose palette + fonts as utilities =
+          +==== */                                                       
+       55 +@theme inline {                                               
+       56 +  --color-background: var(--background); --color-foreground: v
+          +ar(--foreground);                                             
+       57 +  --color-card: var(--card); --color-card-foreground: var(--ca
+          +rd-foreground);                                               
+       58 +  --color-popover: var(--popover); --color-popover-foreground:
+          + var(--popover-foreground);                                   
+       59 +  --color-primary: var(--primary); --color-primary-foreground:
+          + var(--primary-foreground);                                   
+       60 +  --color-secondary: var(--secondary); --color-secondary-foreg
+          +round: var(--secondary-foreground);                           
+       61 +  --color-muted: var(--muted); --color-muted-foreground: var(-
+          +-muted-foreground);                                           
+       62 +  --color-accent: var(--accent); --color-accent-foreground: va
+          +r(--accent-foreground);                                       
+       63 +  --color-destructive: var(--destructive); --color-destructive
+          +-foreground: var(--destructive-foreground);                   
+       64 +  --color-border: var(--border); --color-input: var(--input); 
+          +--color-ring: var(--ring);                                    
+       65  
+       30 -a {                                                           
+       31 -  color: inherit;                                             
+       32 -  text-decoration: none;                                      
+       66 +  --color-brand: var(--brand);                                
+       67 +  --color-pass: var(--pass); --color-pass-tint: var(--pass-tin
+          +t); --color-pass-edge: var(--pass-edge);                      
+       68 +  --color-warn: var(--warn); --color-warn-tint: var(--warn-tin
+          +t); --color-warn-edge: var(--warn-edge);                      
+       69 +  --color-fail: var(--fail); --color-fail-tint: var(--fail-tin
+          +t); --color-fail-edge: var(--fail-edge);                      
+       70 +  --color-incon: var(--incon); --color-incon-tint: var(--incon
+          +-tint); --color-incon-edge: var(--incon-edge);                
+       71 +  --color-info: var(--info); --color-info-tint: var(--info-tin
+          +t); --color-info-edge: var(--info-edge);                      
+       72 +  --color-effort: var(--effort); --color-effort-tint: var(--ef
+          +fort-tint);                                                   
+       73 +                                                              
+       74 +  --color-fg: var(--fg); --color-fg-2: var(--fg-2); --color-fg
+          +-3: var(--fg-3);                                              
+       75 +  --color-fg-muted: var(--fg-muted); --color-fg-faint: var(--f
+          +g-faint);                                                     
+       76 +  --color-line: var(--line); --color-line-2: var(--line-2); --
+          +color-line-strong: var(--line-strong);                        
+       77 +  --color-raised: var(--bg-raised); --color-raised-2: var(--bg
+          +-raised-2); --color-rail: var(--bg-rail);                     
+       78 +                                                              
+       79 +  --font-sans: var(--font-instrument), ui-sans-serif, system-u
+          +i, sans-serif;                                                
+       80 +  --font-display: var(--font-bricolage), ui-sans-serif, system
+          +-ui, sans-serif;                                              
+       81 +  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menl
+          +o, monospace;                                                 
+       82  }
+       83  
+       35 -.imgDark {                                                    
+       36 -  display: none;                                              
+       84 +/* ===== base ===== */                                        
+       85 +* { box-sizing: border-box; }                                 
+       86 +html, body { margin: 0; padding: 0; height: 100%; }           
+       87 +body {                                                        
+       88 +  background: var(--bg); color: var(--fg);                    
+       89 +  font-family: var(--font-instrument), ui-sans-serif, system-u
+          +i, sans-serif;                                                
+       90 +  font-size: 14px; line-height: 1.45;                         
+       91 +  -webkit-font-smoothing: antialiased; text-rendering: optimiz
+          +eLegibility;                                                  
+       92 +  font-feature-settings: "tnum" 1, "lnum" 1, "cv01" 1; overflo
+          +w: hidden;                                                    
+       93  }
+       94 +#__next, body > div { height: 100%; }                         
+       95  
+       39 -@media (prefers-color-scheme: dark) {                         
+       40 -  html {                                                      
+       41 -    color-scheme: dark;                                       
+       42 -  }                                                           
+       96 +.tnum { font-feature-settings: "tnum" 1, "lnum" 1; font-varian
+          +t-numeric: tabular-nums lining-nums; }                        
+       97 +.mono { font-family: var(--font-mono); font-feature-settings: 
+          +"tnum" 1, "lnum" 1; font-variant-numeric: tabular-nums; }     
+       98 +.display-face { font-family: var(--font-bricolage), ui-sans-se
+          +rif, system-ui, sans-serif; }                                 
+       99 +.caption { font-size: 12px; color: var(--fg-muted); line-heigh
+          +t: 1.5; }                                                     
+      100 +.label { font-size: 10.5px; font-weight: 500; letter-spacing: 
+          +.14em; text-transform: uppercase; color: var(--fg-muted); }   
+      101  
+       44 -  .imgLight {                                                 
+       45 -    display: none;                                            
+       46 -  }                                                           
+       47 -  .imgDark {                                                  
+       48 -    display: unset;                                           
+       49 -  }                                                           
+      102 +.scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-c
+          +olor: var(--line-strong) transparent; }                       
+      103 +.scroll::-webkit-scrollbar { width: 9px; height: 9px; }       
+      104 +.scroll::-webkit-scrollbar-thumb { background: var(--line-stro
+          +ng); border-radius: 6px; border: 2px solid transparent; backgr
+          +ound-clip: content-box; }                                     
+      105 +.scroll::-webkit-scrollbar-track { background: transparent; } 
+      106 +::selection { background: var(--brand-tint-2); color: var(--fg
+          +); }                                                          
+      107 +a { color: inherit; text-decoration: none; }                  
+      108 +button { font-family: inherit; cursor: pointer; }             
+      109 +.focusable:focus-visible, button:focus-visible, input:focus-vi
+          +sible, textarea:focus-visible { outline: 2px solid var(--brand
+          +); outline-offset: 1px; }                                     
+      110 +textarea::placeholder, input::placeholder { color: var(--fg-fa
+          +int); }                                                       
+      111 +.run-row { transition: background-color 120ms ease; }         
+      112 +.run-row:hover { background: var(--bg-hover) !important; }    
+      113 +                                                              
+      114 +.ag-range { -webkit-appearance: none; appearance: none; height
+          +: 4px; border-radius: 4px; outline: none;                     
+      115 +  background: linear-gradient(90deg, var(--brand) 0%, var(--br
+          +and) var(--pct,30%), var(--line-2) var(--pct,30%), var(--line-
+          +2) 100%); }                                                   
+      116 +.ag-range::-webkit-slider-thumb { -webkit-appearance: none; ap
+          +pearance: none; width: 15px; height: 15px; border-radius: 50%;
+          + background: var(--fg); border: 2px solid var(--bg-raised); cu
+          +rsor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.4); }        
+      117 +.ag-range::-moz-range-thumb { width: 14px; height: 14px; borde
+          +r-radius: 50%; background: var(--fg); border: 2px solid var(--
+          +bg-raised); cursor: pointer; }                                
+      118 +                                                              
+      119 +@keyframes settle-in { from { opacity: 0; transform: translate
+          +Y(4px); } to { opacity: 1; transform: none; } }               
+      120 +@keyframes hl-fade { 0% { background-color: var(--bg-active); 
+          +} 100% { background-color: transparent; } }                   
+      121 +@keyframes incident-pulse { 0%,100% { opacity: 1; } 50% { opac
+          +ity: .45; } }                                                 
+      122 +@keyframes ag-spin { to { transform: rotate(360deg); } }      
+      123 +@keyframes pop-in { from { opacity: 0; transform: translateY(6
+          +px) scale(.99); } to { opacity: 1; transform: none; } }       
+      124 +@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; 
+          +} }                                                           
+      125 +@media (prefers-reduced-motion: no-preference) {              
+      126 +  .settle { animation: settle-in 180ms cubic-bezier(.22,.61,.3
+          +6,1) both; }                                                  
+      127 +  .hl { animation: hl-fade 1100ms ease-out; }                 
+      128 +  .popin { animation: pop-in 160ms cubic-bezier(.22,.61,.36,1)
+          + both; }                                                      
+      129  }
+      130 +.pulse-dot { animation: incident-pulse 1.6s ease-in-out infini
+          +te; }                                                         
+      131 +@media (prefers-reduced-motion: reduce) { .pulse-dot { animati
+          +on: none; } }                                                 
+
+⏺ Write(apps/web/app/layout.tsx)
+  ⎿  Added 23 lines, removed 12 lines
+       3  import "./globals.css";
+       4  import { TRPCReactProvider } from "../trpc/client";
+       5  
+       6 -const geistSans = localFont({                                  
+       7 -  src: "./fonts/GeistVF.woff",                                 
+       8 -  variable: "--font-geist-sans",                               
+       6 +const instrument = localFont({                                 
+       7 +  variable: "--font-instrument",                               
+       8 +  display: "swap",                                             
+       9 +  src: [                                                       
+      10 +    { path: "./fonts/InstrumentSans-Regular.ttf", weight: "400"
+         +, style: "normal" },                                           
+      11 +    { path: "./fonts/InstrumentSans-Medium.ttf", weight: "500",
+         + style: "normal" },                                            
+      12 +    { path: "./fonts/InstrumentSans-SemiBold.ttf", weight: "600
+         +", style: "normal" },                                          
+      13 +    { path: "./fonts/InstrumentSans-Bold.ttf", weight: "700", s
+         +tyle: "normal" },                                              
+      14 +  ],                                                           
+      15  });
+      10 -const geistMono = localFont({                                  
+      11 -  src: "./fonts/GeistMonoVF.woff",                             
+      12 -  variable: "--font-geist-mono",                               
+      16 +                                                               
+      17 +const bricolage = localFont({                                  
+      18 +  variable: "--font-bricolage",                                
+      19 +  display: "swap",                                             
+      20 +  src: "./fonts/BricolageGrotesque.ttf",                       
+      21  });
+      22  
+      23  export const metadata: Metadata = {
+      24    title: "Autogate",
+      17 -  description: "Automated PR safety layer — dashboard",        
+      25 +  description: "Automated release-safety instrument — dashboard
+         +",                                                             
+      26  };
+      27  
+      28 +const noFlashTheme = `(function(){try{var t=localStorage.getIte
+         +m("ag-theme")||"dark";document.documentElement.setAttribute("da
+         +ta-theme",t);}catch(e){document.documentElement.setAttribute("d
+         +ata-theme","dark");}})();`;                                    
+      29 +                                                               
+      30  export default function RootLayout({
+      31    children,
+      22 -}: Readonly<{                                                  
+      23 -  children: React.ReactNode;                                   
+      24 -}>) {                                                          
+      32 +}: Readonly<{ children: React.ReactNode }>) {                  
+      33    return (
+      26 -    <html lang="en">                                           
+      27 -      <body className={`${geistSans.variable} ${geistMono.varia
+         -ble}`}>                                                        
+      34 +    <html lang="en" suppressHydrationWarning>                  
+      35 +      <head>                                                   
+      36 +        <script dangerouslySetInnerHTML={{ __html: noFlashTheme
+         + }} />                                                         
+      37 +      </head>                                                  
+      38 +      <body className={`${instrument.variable} ${bricolage.vari
+         +able}`}>                                                       
+      39          <TRPCReactProvider>{children}</TRPCReactProvider>
+      40        </body>
+      41      </html>
+
+⏺ Now the shadcn primitives.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/apps/web
+      pnpm dlx shadcn@latest add button dialog switch slider toggle-group
+      tooltip separator skeleton --yes 2>&1 | tail -3…)
+  ⎿  - Installing dependencies.
+     ✔ Installing dependencies.
+     - Updating files.
+     … +27 lines (ctrl+o to expand)
+  ⎿  (timeout 4m)
+
+⏺ shadcn added the 9 primitives + radix deps. Let me confirm it didn't clobber
+  my token CSS and that the foundation typechecks.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate/apps/web
+      echo "=== globals.css still has warm-graphite tokens? ===" && grep -c
+      "warm-graphite\|--bg-rail\|--spine-ai" app/gl…)
+  ⎿  === globals.css still has warm-graphite tokens? ===
+     6
+     === git status (web) ===
+     … +23 lines (ctrl+o to expand)
+
+⏺ Foundation compiles cleanly, tokens intact. Committing Phase 0+1.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A apps/web…)
+  ⎿  committed
+
+⏺ Phases 0–1 done. Marking complete and starting Phase 2 (view-model — no tests,
+  per your call). Let me confirm the contract's public type exports before
+  writing the type barrel.
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== contracts index ===" && cat packages/contracts/src/index.ts
+      2>/dev/null…)
+  ⎿  === contracts index ===
+     export * from './schemas/domain.js';
+     export * from './schemas/dashboard.js';
+     … +17 lines (ctrl+o to expand)
+
+⏺ All types exported. Writing the type barrel + the full view-model (logic only,
+  no tests).
+
+⏺ Write(apps/web/lib/api-types.ts)
+  ⎿  Wrote 19 lines to apps/web/lib/api-types.ts
+         dashboard.import surface for the contract types used across the 
+       2 // Runtime data still flows only through the tRPC AppRouter; the
+         se are the
+       3 // shared shapes the router's procedures resolve to.
+       4 export type {
+       6   RunDetail,,
+       7   RunStatus,
+       8   RunDecision,
+       9   CheckResult,
+      10   TrustMetrics,
+     … +11 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/lib/view-model.ts)
+  ⎿  Wrote 201 lines to apps/web/lib/view-model.ts
+       2  * Pure derivation layer for the dashboard — everything the prot
+         otype computed
+       3  * client-side, ported to the real contract types. No React, no 
+         I/O.
+       4  */
+       6   RunSummary,
+       7   RunDetail,
+       8   CheckResult,
+       9   CheckLayer,
+      10   RunDecision,
+     … +241 lines (ctrl+o to expand)
+
+⏺ Phase 2 written. Quick typecheck before moving on.
+
+⏺ Bash(pnpm --filter web check-types 2>&1 | tail -15)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Clean. Committing Phase 2, then building Phase 3 — primitives (faithful
+  transcriptions; inline token styles for the bespoke SVG pieces, lucide for
+  icons).
+
+⏺ Bash(git add -A apps/web && git commit -q -m "feat(web): view-model
+      derivations + contract type barrel" && echo done)
+  ⎿  done
+
+⏺ Write(apps/web/components/primitives/icon.tsx)
+  ⎿  Wrote 82 lines to apps/web/components/primitives/icon.tsx
+       1 import {
+       2   List,
+       3   LineChart,
+       4   User,
+       5   SlidersHorizontal,
+       6   GitFork,
+       7   GitBranch,
+       8   PanelLeft,
+       9   ChevronDown,
+      10   ChevronRight,
+     … +72 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/verdict-glyph.tsx)
+  ⎿  Wrote 53 lines to apps/web/components/primitives/verdict-glyph.tsx
+       2 import type { VerdictStatus } from "@/lib/api-types";
+       3 
+       4 /** Distinct SHAPE per verdict (monochrome-safe). `needs_human` 
+         = slate dashed query. */
+       5 export function VerdictGlyph({
+       6   verdict,
+       7   size = 16,
+       8 }: {
+       9   verdict: VerdictStatus | "pending";
+      10   size?: number;
+     … +52 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/risk.tsx)
+  ⎿  Wrote 35 lines to apps/web/components/primitives/risk.tsx
+         del";t { riskBand, riskColor, riskDotColor } from "@/lib/view-mo
+       2 
+       3 export function RiskDot({ score, size = 8 }: { score: number; si
+         ze?: number }) {
+       4   const b = riskBand(score);
+       6   return (= riskDotColor(score);
+       7     <span
+       8       title={`risk ${score} (${b})`}
+       9       style={{
+      10         width: size,
+     … +33 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/pills.tsx)
+  ⎿  Wrote 65 lines to apps/web/components/primitives/pills.tsx
+         b/view-model";ION_STYLE, statusPillKey, type Effort } from "@/li
+       2 import type { RunDecision, RunStatus } from "@/lib/api-types";
+       3 
+       4 export function EffortPill({ effort }: { effort: Effort }) {
+       5   return (
+       6     <span
+       7       title="Estimated effort to clear (derived)"
+       8       style={{
+       9         fontSize: 11,
+      10         fontWeight: 500,
+     … +59 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/avatar.tsx)
+  ⎿  Wrote 33 lines to apps/web/components/primitives/avatar.tsx
+         s)", "var(--warn)", "var(--incon)"]; "var(--effort)", "var(--pas
+       2 
+       3 export function Avatar({ name, size = 22 }: { name: string; size
+       4   const initials = name
+       5     .split(" ")
+       6     .map((n) => n[0])
+       8     .join("") 2)
+       9     .toUpperCase();
+      10   const idx = name.split("").reduce((a, c) => a + c.charCodeAt(0
+         ), 0) % AVATAR_TINTS.length;
+     … +27 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/tally.tsx)
+  ⎿  Wrote 76 lines to apps/web/components/primitives/tally.tsx
+       2 import { VerdictGlyph } from "./verdict-glyph";
+       3 
+       4 type Summary = { pass: number; warn: number; fail: number; pendi
+         ng: number };
+       5 
+         */* Big tile row used in run detail; adds a "needs human" tile. 
+       7 export function TallyTiles({
+       8   summary,
+       9   needsHuman = 0,
+      10   size = "lg",
+     … +74 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/primitives/sparkline.tsx)
+  ⎿  Wrote 33 lines to apps/web/components/primitives/sparkline.tsx
+       1 export function Sparkline({
+       2   data,
+       3   w = 88,
+       4   h = 26,
+       5   color = "var(--info)",
+       6   fill = true,
+       7 }: {
+       8   data: number[];
+       9   w?: number;
+      10   h?: number;
+     … +27 lines (ctrl+o to expand)
+  ⎿  Found 8 new diagnostic issues in 3 files (ctrl+o to expand)
+
+⏺ Strict noUncheckedIndexedAccess flags the Record lookups. Adding
+  guaranteed-non-undefined helpers in the view-model and using them in the three
+  primitives.
+
+⏺ Update(apps/web/lib/view-model.ts)
+  ⎿  Added 10 lines
+      199    monitor: "Monitoring",
+      200  };
+      201  export const LAYER_ORDER: CheckLayer[] = ["gate", "ai", "monit
+           or"];
+      202 +                                                              
+      203 +/* ---------- safe lookups (noUncheckedIndexedAccess) --------
+          +-- */                                                         
+      204 +const PENDING_VERDICT = { c: "var(--fg-faint)", edge: "var(--l
+          +ine-2)", tint: "transparent", label: "pending" };             
+      205 +export function verdictStyle(v: string) {                     
+      206 +  return VERDICT[v] ?? PENDING_VERDICT;                       
+      207 +}                                                             
+      208 +const RUNNING_DECISION = { label: "running", c: "var(--info)",
+          + tint: "var(--info-tint)" };                                  
+      209 +export function decisionStyle(key: string) {                  
+      210 +  return DECISION_STYLE[key] ?? RUNNING_DECISION;             
+      211 +}                                                             
+
+⏺ Update(apps/web/components/primitives/verdict-glyph.tsx)  ⎿  Added 1 line, removed 1 line
+      1 -import { VERDICT } from "@/lib/view-model";                     
+      1 +import { verdictStyle } from "@/lib/view-model";                
+      2  import type { VerdictStatus } from "@/lib/api-types";
+      3  
+      4  /** Distinct SHAPE per verdict (monochrome-safe). `needs_human` 
+         = slate dashed query. */
+
+⏺ Update(apps/web/components/primitives/verdict-glyph.tsx)
+  ⎿  Added 1 line, removed 1 line
+       9    verdict: VerdictStatus | "pending";
+      10    size?: number;
+      11  }) {
+      12 -  const c = (VERDICT[verdict] || VERDICT.pending).c;           
+      12 +  const c = verdictStyle(verdict).c;                           
+      13    const s = size;
+      14    const base = { display: "block", flexShrink: 0 } as const;
+      15  
+
+⏺ Update(apps/web/components/primitives/pills.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1 -import { DECISION_STYLE, statusPillKey, type Effort } from "@/li
+        -b/view-model";                                                  
+      1 +import { decisionStyle, statusPillKey, type Effort } from "@/lib
+        +/view-model";                                                   
+      2  import type { RunDecision, RunStatus } from "@/lib/api-types";
+      3  
+      4  export function EffortPill({ effort }: { effort: Effort }) {
+
+⏺ Update(apps/web/components/primitives/pills.tsx)
+  ⎿  Added 1 line, removed 1 line
+      34    size?: "md" | "lg";
+      35  }) {
+      36    const key = statusPillKey(decision, status);
+      37 -  const s = DECISION_STYLE[key] || DECISION_STYLE.pending;     
+      37 +  const s = decisionStyle(key);                                
+      38    const live = status === "running";
+      39    const pad = size === "lg" ? "4px 11px" : "2px 9px";
+      40    const fz = size === "lg" ? 12.5 : 11.5;
+
+⏺ Update(apps/web/components/primitives/tally.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1 -import { VERDICT } from "@/lib/view-model";                     
+      1 +import { verdictStyle } from "@/lib/view-model";                
+      2  import { VerdictGlyph } from "./verdict-glyph";
+      3  
+      4  type Summary = { pass: number; warn: number; fail: number; pendi
+         ng: number };
+
+⏺ Update(apps/web/components/primitives/tally.tsx)
+  ⎿  Added 1 line, removed 1 line
+      23    return (
+      24      <div style={{ display: "flex", gap: 8 }}>
+      25        {items.map((it) => {
+      26 -        const v = VERDICT[it.k];                               
+      26 +        const v = verdictStyle(it.k);                          
+      27          const zero = it.n === 0;
+      28          return (
+      29            <div
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Update(apps/web/components/primitives/sparkline.tsx)
+  ⎿  Added 1 line, removed 1 line
+      22    });
+      23    const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed
+          (1) + " " + p[1].toFixed(1)).join(" ");
+      24    const area = `M0 ${h} ` + pts.map((p) => "L" + p[0].toFixed(1
+          ) + " " + p[1].toFixed(1)).join(" ") + ` L${w} ${h} Z`;
+      25 -  const last = pts[pts.length - 1];                            
+      25 +  const last = pts[pts.length - 1]!;                           
+      26    return (
+      27      <svg width={w} height={h} style={{ display: "block", overfl
+          ow: "visible" }}>
+      28        {fill && <path d={area} fill={color} fillOpacity="0.1" />
+          }
+
+⏺ Bash(pnpm --filter web check-types 2>&1 | tail -15)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Primitives clean. Committing Phase 2+3.
+
+⏺ Bash(git add -A apps/web && git commit -q -m "feat(web): primitives (Icon,
+      VerdictGlyph, Risk, Pills, Avatar, Tally, Sparkline)" && echo done)
+  ⎿  done
+
+⏺ Primitives committed. Now Phase 4 — theme + shell (theme provider, toast,
+  brand, rail, topbar, app-shell).
+
+⏺ Write(apps/web/components/shell/theme-provider.tsx)
+  ⎿  Wrote 30 lines to apps/web/components/shell/theme-provider.tsx
+       2 "use client";
+       3 import { createContext, useContext, useEffect, useState } from "
+         react";
+       4 
+       5 type Theme = "dark" | "light";
+         {onst Ctx = createContext<{ theme: Theme; toggle: () => void }>(
+       7   theme: "dark",
+       8   toggle: () => {},
+       9 });
+      10 export const useTheme = () => useContext(Ctx);
+     … +24 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/shell/toast.tsx)
+  ⎿  Wrote 45 lines to apps/web/components/shell/toast.tsx
+       2 "use client";
+       3 import { createContext, useCallback, useContext, useEffect, useS
+         tate } from "react";
+       5 const Ctx = createContext<{ toast: (msg: string) => void }>({ to
+         ast: () => {} });
+       6 export const useToast = () => useContext(Ctx);
+       8 export function ToastProvider({ children }: { children: React.Re
+         actNode }) {
+       9   const [msg, setMsg] = useState<string | null>(null);
+      10   const toast = useCallback((m: string) => setMsg(m), []);
+     … +39 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/shell/brand.tsx)
+  ⎿  Wrote 35 lines to apps/web/components/shell/brand.tsx
+        + wordmark. */ar "barcode" emblem (theme-aware via currentColor) 
+      2 const EMBLEM_PATHS = `<path d="M25 0.999999C25 0.447714 25.4477 0
+         26 0H27C27.5523 0 28 0.447715 28 1V43C28 43.5523 27.5523 44 27 4
+        4H26C25.4477 44 25 43.5523 25 43V0.999999Z" fill="currentColor"><
+        /path><path d="M20 1C20 0.447715 20.4477 0 21 0H22C22.5523 0 23 0
+        523 20 14V1Z" fill="currentColor"></path><path d="M15 1C15 0.4477
+        15 15.4477 0 16 0H17C17.5523 0 18 0.447715 18 1V14C18 14.5523 17.
+        5523 15 17 15H16C15.4477 15 15 14.5523 15 14V1Z" fill="currentCol
+        or"></path><path d="M15 28C15 27.4477 15.4477 27 16 27H17C17.5523
+         27 18 27.4477 18 28V35C1
+     … +47 lines (ctrl+o to expand)
+
+⏺ Now rail, topbar, and the shell that ties them together.
+
+⏺ Write(apps/web/components/shell/rail.tsx)
+  ⎿  Wrote 172 lines to apps/web/components/shell/rail.tsx
+      1 "use client";
+      2 
+      3 import Link from "next/link";
+      4 import { usePathname, useSearchParams } from "next/navigation";
+      5 import { useQuery } from "@tanstack/react-query";
+      6 import { useTRPC } from "@/trpc/client";
+      7 import { Icon } from "@/components/primitives/icon";
+      8 import { Emblem, Lockup } from "./brand";
+      9 import { useTheme } from "./theme-provider";
+     … +190 lines (ctrl+o to expand)
+⏺ Write(apps/web/components/shell/topbar.tsx)
+  ⎿  Wrote 88 lines to apps/web/components/shell/topbar.tsx
+       2 "use client";
+       3 import Link from "next/link";
+       4 import { useQuery, useQueries, useIsFetching } from "@tanstack/r
+         eact-query";
+       5 import { useTRPC } from "@/trpc/client";
+       6 import { Icon } from "@/components/primitives/icon";
+       7 import { useToast } from "./toast";
+       8 import { agreementPct, deriveIncident } from "@/lib/view-model";
+       9 
+      10 export function Topbar() {
+     … +95 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/shell/app-shell.tsx)
+  ⎿  Wrote 24 lines to apps/web/components/shell/app-shell.tsx
+       2 "use client";
+       3 import { useState } from "react";
+       4 import { TooltipProvider } from "@/components/ui/tooltip";
+       5 import { Rail } from "./rail";
+       6 import { Topbar } from "./topbar";
+       7 import { ToastProvider } from "./toast";
+       8 
+       9 export function AppShell({ children }: { children: React.ReactNo
+         de }) {
+      10   const [collapsed, setCollapsed] = useState(false);
+     … +18 lines (ctrl+o to expand)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+⏺ Next flags the function prop across the client boundary. Since only the rail
+  uses collapsed, I'll move that state into the rail itself and drop the prop.
+
+⏺ Update(apps/web/components/shell/rail.tsx)
+  ⎿  Added 1 line
+      1  "use client";
+      2  
+      3 +import { useState } from "react";                               
+      4  import Link from "next/link";
+      5  import { usePathname, useSearchParams } from "next/navigation";
+      6  import { useQuery } from "@tanstack/react-query";
+
+⏺ Update(apps/web/components/shell/rail.tsx)
+  ⎿  Added 2 lines, removed 1 line
+      83    );
+      84  }
+      85  
+      86 -export function Rail({ collapsed, setCollapsed }: { collapsed: 
+         -boolean; setCollapsed: (f: (c: boolean) => boolean) => void }) 
+         -{                                                              
+      86 +export function Rail() {                                       
+      87 +  const [collapsed, setCollapsed] = useState(false);           
+      88    const trpc = useTRPC();
+      89    const pathname = usePathname();
+      90    const params = useSearchParams();
+
+⏺ Update(apps/web/components/shell/app-shell.tsx)
+  ⎿  Added 1 line, removed 3 lines
+       1  "use client";
+       2  
+       3 -import { useState } from "react";                              
+       3  import { TooltipProvider } from "@/components/ui/tooltip";
+       4  import { Rail } from "./rail";
+       5  import { Topbar } from "./topbar";
+       6  import { ToastProvider } from "./toast";
+       7  
+       8  export function AppShell({ children }: { children: React.ReactN
+          ode }) {
+      10 -  const [collapsed, setCollapsed] = useState(false);           
+       9    return (
+      10      <TooltipProvider delayDuration={200}>
+      11        <ToastProvider>
+      12          <div style={{ display: "flex", height: "100vh", overflo
+          w: "hidden" }}>
+      15 -          <Rail collapsed={collapsed} setCollapsed={setCollapse
+         -d} />                                                          
+      13 +          <Rail />                                             
+      14            <div style={{ flex: 1, display: "flex", flexDirection
+          : "column", minWidth: 0, background: "var(--bg)" }}>
+      15              <Topbar />
+      16              <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}
+          >{children}</div>
+
+⏺ Now Phase 5 — routes skeleton: dashboard layout, remove the scaffold
+  placeholders + unused lockup file, stub the home route.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git rm -q apps/web/app/page.tsx apps/web/app/_components/runs-list.tsx
+      apps/web/app/page.module.css…)
+  ⎿  removed placeholders + lockup txt
+
+⏺ Write(apps/web/app/(dashboard)/layout.tsx)
+  ⎿  Wrote 10 lines to apps/web/app/(dashboard)/layout.tsx
+         ";port { ThemeProvider } from "@/components/shell/theme-provider
+       2 import { AppShell } from "@/components/shell/app-shell";
+       3 
+       4 export default function DashboardLayout({ children }: { children
+         : React.ReactNode }) {
+       6     <ThemeProvider>
+       7       <AppShell>{children}</AppShell>
+       8     </ThemeProvider>
+       9   );
+      10 }
+     … +1 line (ctrl+o to expand)
+
+⏺ Write(apps/web/app/(dashboard)/page.tsx)
+  ⎿  Wrote 5 lines to apps/web/app/(dashboard)/page.tsx
+      1 export const dynamic = "force-dynamic";
+      2 
+      3 export default function OpenReviews() {
+      4   return <div className="p-6 caption">Open reviews</div>;
+      5 }
+
+⏺ Bash(pnpm --filter web check-types 2>&1 | tail -20)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Shell + skeleton typecheck clean. Committing Phase 4+5.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A apps/web && git commit -q -m "feat(web): app shell (theme,
+      rail, topbar, toast) + dashboard layout/routes" && ech…)
+  ⎿  done
+
+⏺ Phase 6 — Open reviews stream. Writing the row/group/control components first.
+
+⏺ Write(apps/web/components/stream/group-header.tsx)
+  ⎿  Wrote 48 lines to apps/web/components/stream/group-header.tsx
+       1 import { Icon } from "@/components/primitives/icon";
+       2 
+       3 export function GroupHeader({
+       4   glyph,
+       5   label,
+       6   count,
+       7   sub,
+       8   right,
+       9   collapsed,
+      10   onToggle,
+     … +42 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/segmented.tsx)
+  ⎿  Wrote 33 lines to apps/web/components/stream/segmented.tsx
+       1 export function Segmented<T extends string>({
+       2   value,
+       3   onChange,
+       4   options,
+       5 }: {
+       6   value: T;
+       7   onChange: (v: T) => void;
+       8   options: { v: T; l: string }[];
+       9 }) {
+      10   return (
+     … +26 lines (ctrl+o to expand)
+⏺ Write(apps/web/components/stream/gate-progress.tsx)
+  ⎿  Wrote 14 lines to apps/web/components/stream/gate-progress.tsx
+       2 import type { RunSummary } from "@/lib/api-types";
+       3 /** Layer-1 gate progress for awaiting_checks rows. */
+         ] }) { function GateProgress({ gate }: { gate: RunSummary["gate"
+       5   const pct = gate.total ? (gate.passed / gate.total) * 100 : 0;
+       7     <div className="mono" style={{ display: "flex", alignItems: 
+         "center", gap: 8, fontSize: 12, color: "var(--incon)" }}>
+         an>   <span className="tnum">gate {gate.passed}/{gate.total}</sp
+       9       <span style={{ height: 3, width: 48, overflow: "hidden", b
+      10         <span style={{ display: "block", height: "100%", borderR
+         adius: 999, width: `${pct}%`, background: "var(--incon)" }} />
+     … +8 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/run-row.tsx)
+  ⎿  Wrote 86 lines to apps/web/components/stream/run-row.tsx
+       1 import Link from "next/link";
+       2 import type { RunSummary } from "@/lib/api-types";
+       3 import { effortBand } from "@/lib/view-model";
+       4 import { EffortPill } from "@/components/primitives/pills";
+       5 import { RiskDot } from "@/components/primitives/risk";
+       6 import { TallyInline } from "@/components/primitives/tally";
+       7 import { Avatar } from "@/components/primitives/avatar";
+       8 import { GateProgress } from "./gate-progress";
+       9 
+      10 const GRID = "76px minmax(0,1fr) 96px 78px 30px";
+     … +82 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/auto-row.tsx)
+  ⎿  Wrote 50 lines to apps/web/components/stream/auto-row.tsx
+       2 import type { RunSummary } from "@/lib/api-types";
+       3 import { RiskDot } from "@/components/primitives/risk";
+       4 import { Icon } from "@/components/primitives/icon";
+       5 
+       6 export function AutoRow({ run, visited }: { run: RunSummary; vis
+         ited?: boolean }) {
+       7   return (
+       8     <Link
+       9       href={`/runs/${run.runId}`}
+      10       className="run-row focusable"
+     … +47 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/incident-bar.tsx)
+  ⎿  Wrote 44 lines to apps/web/components/stream/incident-bar.tsx
+       2 import { Icon } from "@/components/primitives/icon";
+       3 
+       4 export function IncidentBar({ title, href }: { title: string; hr
+         ef: string }) {
+       5   return (
+       6     <div
+       7       className="settle"
+       8       style={{
+       9         padding: "16px 22px",
+      10         display: "flex",
+     … +43 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/empty-needs-you.tsx)
+  ⎿  Wrote 27 lines to apps/web/components/stream/empty-needs-you.tsx
+         yph";t { VerdictGlyph } from "@/components/primitives/verdict-gl
+       2 
+         }) {rt function EmptyNeedsYou({ filtered }: { filtered: boolean 
+       4   return (
+       5     <div style={{ display: "flex", flexDirection: "column", alig
+         , gap: 12, textAlign: "center" }}>"center", padding: "54px 22px"
+       6       <div
+       8           width: 44,
+       9           height: 44,
+      10           borderRadius: 10,
+     … +24 lines (ctrl+o to expand)
+
+⏺ Now the in-production card, the stream orchestrator, and the real page.
+
+⏺ Write(apps/web/components/stream/prod-card.tsx)
+  ⎿  Wrote 89 lines to apps/web/components/stream/prod-card.tsx
+       2 import type { RunDetail } from "@/lib/api-types";
+       3 import { deriveIncident } from "@/lib/view-model";
+       4 import { Icon } from "@/components/primitives/icon";
+       5 import { StatusPill } from "@/components/primitives/pills";
+       6 
+       8   display: "inline-flex", alignItems: "center", gap: 7, padding:
+          "7px 13px", borderRadius: 6,
+       9   background: "transparent", color: "var(--fg-2)", fontSize: 12.
+         5, fontWeight: 450, border: "1px solid var(--line-2)",
+      10 };
+     … +113 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stream/release-stream.tsx)
+  ⎿  Wrote 160 lines to apps/web/components/stream/release-stream.tsx
+       2 "use client";
+       3 import { useState } from "react";
+       4 import { useSearchParams } from "next/navigation";
+       5 import { useSuspenseQuery, useQueries } from "@tanstack/react-qu
+         ery";
+       7 import { groupRuns, deriveIncident } from "@/lib/view-model";
+       8 import type { RunDetail } from "@/lib/api-types";
+       9 import { Icon } from "@/components/primitives/icon";
+      10 import { VerdictGlyph } from "@/components/primitives/verdict-gl
+         yph";
+     … +188 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/app/(dashboard)/page.tsx)
+  ⎿  Added 23 lines, removed 2 lines
+       1 +import { Suspense } from "react";                              
+       2 +import { getQueryClient, HydrateClient, trpc } from "@/trpc/ser
+         +ver";                                                          
+       3 +import { ReleaseStream } from "@/components/stream/release-stre
+         +am";                                                           
+       4 +                                                               
+       5  export const dynamic = "force-dynamic";
+       6  
+       3 -export default function OpenReviews() {                        
+       4 -  return <div className="p-6 caption">Open reviews</div>;      
+       7 +export default async function OpenReviews({                    
+       8 +  searchParams,                                                
+       9 +}: {                                                           
+      10 +  searchParams: Promise<{ repo?: string }>;                    
+      11 +}) {                                                           
+      12 +  const { repo } = await searchParams;                         
+      13 +  const qc = getQueryClient();                                 
+      14 +  await Promise.all([                                          
+      15 +    qc.prefetchQuery(trpc.runs.list.queryOptions({ limit: 50, .
+         +..(repo ? { repo } : {}) })),                                  
+      16 +    qc.prefetchQuery(trpc.repos.queryOptions()),               
+      17 +    qc.prefetchQuery(trpc.metrics.queryOptions()),             
+      18 +  ]);                                                          
+      19 +  return (                                                     
+      20 +    <HydrateClient>                                            
+      21 +      <Suspense fallback={<div className="p-6 caption">Loading…
+         +</div>}>                                                       
+      22 +        <ReleaseStream />                                      
+      23 +      </Suspense>                                              
+      24 +    </HydrateClient>                                           
+      25 +  );                                                           
+      26  }
+
+⏺ Typechecking Phase 6.
+
+⏺ Bash(pnpm --filter web check-types 2>&1 | tail -20)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Clean. Before building the last two surfaces on this foundation, let me do a
+  real render smoke test. First, how does apps/api pick its data provider (mock
+  vs DB)?
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== api src files ===" && ls apps/api/src…)
+  ⎿  === api src files ===
+     dashboard.ts
+     index.ts
+     … +34 lines (ctrl+o to expand)
+
+⏺ apps/api uses the real Store-backed provider (needs Postgres) — not ideal for
+  a quick UI check. Instead I'll lean on next build, which compiles every route
+  and surfaces client/server-boundary + Suspense issues without needing the API
+  (pages are force-dynamic, so build won't call it). Committing Phase 6 first,
+  then a full build.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A apps/web && git commit -q -m "feat(web): Open reviews stream
+      wired to runs.list (tiers, filters, in-prod, auto-me…)
+  ⎿  committed; building…
+
+     > web@0.1.0 build /Users/tyron/Developer/auto-gate/apps/web
+     … +27 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ next build is green — the shell, providers, fonts, useSearchParams, and the
+  whole Open-reviews stream compile and the dynamic route builds cleanly. Strong
+  confidence in the foundation. Marking Phase 6 done; starting Phase 7 — Run 
+  detail.
+
+⏺ Write(apps/web/components/run-detail/check-row.tsx)
+  ⎿  Wrote 78 lines to apps/web/components/run-detail/check-row.tsx
+       2 "use client";
+       3 import { useState } from "react";
+       4 import type { CheckResult } from "@/lib/api-types";
+       5 import { fmtDuration, verdictStyle } from "@/lib/view-model";
+       6 import { VerdictGlyph } from "@/components/primitives/verdict-gl
+         yph";
+       7 import { Icon } from "@/components/primitives/icon";
+       8 
+       9 const SEVERITY_COLOR: Record<string, string> = {
+      10   critical: "var(--fail)",
+     … +97 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/run-detail/monitoring-row.tsx)  ⎿  Wrote 43 lines to apps/web/components/run-detail/monitoring-row.tsx
+       2 import { deriveIncident } from "@/lib/view-model";
+       3 import { VerdictGlyph } from "@/components/primitives/verdict-gl
+         yph";
+       4 
+       5 export function MonitoringRow({ run }: { run: RunDetail }) {
+       6   const m = run.monitoring;
+       7   if (!m) return null;
+       8   const degrading = deriveIncident(run);
+       9   const done = m.rolledBack;
+      10   const v = degrading || done ? "fail" : "pass";
+     … +50 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/run-detail/orchestrator-brief.tsx)
+  ⎿  Wrote 37 lines to
+     apps/web/components/run-detail/orchestrator-brief.tsx
+       2 import type { RunDetail } from "@/lib/api-types";
+       3 export function OrchestratorBrief({ run }: { run: RunDetail }) {
+       5   return (= run.decision;
+       6     <div style={{ borderRadius: 9, padding: "18px 20px", backgro
+         >nd: "var(--info-tint)", border: "1px solid var(--info-edge)" }}
+       7       <div style={{ display: "flex", alignItems: "center", gap: 
+       8         <span style={{ width: 6, height: 6, borderRadius: 6, bac
+         kground: "var(--info)" }} />
+         >Orchestrator brief</span>abel" style={{ color: "var(--info)" }}
+      10       </div>
+     … +42 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/run-detail/timeline.tsx)
+  ⎿  Wrote 30 lines to apps/web/components/run-detail/timeline.tsx
+       2 import { fmtTimeLabel, timelineEmphasis } from "@/lib/view-model
+         ";
+       3 
+       4 export function Timeline({ run }: { run: RunDetail }) {
+       5   return (
+       7       <div className="label" style={{ marginBottom: 14 }}>Timeli
+         ne</div>
+       8       <div style={{ display: "flex", flexDirection: "column" }}>
+       9         {run.timeline.map((t, i) => {
+      10           const emph = timelineEmphasis(t.event);
+     … +34 lines (ctrl+o to expand)
+
+⏺ Now the evidence section (Static=gateChecks / AI / Monitoring) and the brief
+  wrapper.
+
+⏺ Write(apps/web/components/run-detail/evidence.tsx)
+  ⎿  Wrote 158 lines to apps/web/components/run-detail/evidence.tsx
+       1 import type { RunDetail, CheckLayer } from "@/lib/api-types";
+       2 import {
+       3   SPINE_COLOR,
+       4   LAYER_LABEL,
+       5   layerStance,
+       6   gateStance,
+       7   conclusionStance,
+       8   disagreement,
+       9   verdictStyle,
+      10   type Stance,
+     … +187 lines (ctrl+o to expand)
+
+⏺ Now the confirm modal (shadcn Dialog) and the action/decision state machine.
+
+⏺ Write(apps/web/components/run-detail/confirm-modal.tsx)
+  ⎿  Wrote 67 lines to apps/web/components/run-detail/confirm-modal.tsx
+       2 "use client";
+         /ui/dialog";log, DialogContent, DialogTitle } from "@/components
+       4 
+         k";ort type ConfirmAction = "approve_merge" | "block" | "rollbac
+       6 
+         : string }> = {rd<ConfirmAction, { title: string; c: string; cta
+         ta: "Approve & merge" },: "Approve & merge", c: "var(--pass)", c
+       9   block: { title: "Block this change", c: "var(--fail)", cta: "B
+      10   rollback: { title: "Roll back from production", c: "var(--fail
+         )", cta: "Roll back now" },
+     … +81 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/run-detail/action-block.tsx)
+  ⎿  Wrote 215 lines to apps/web/components/run-detail/action-block.tsx
+       2 "use client";
+       3 import { useState } from "react";
+       5 import { deriveIncident, recordedReasonFrom } from "@/lib/view-m
+         odel";
+       6 import { VerdictGlyph } from "@/components/primitives/verdict-gl
+       7 import { Icon } from "@/components/primitives/icon";
+       8 import { ConfirmModal, type ConfirmAction } from "./confirm-moda
+       9 l";
+      10 export type ActPayload = { action: ConfirmAction; reason: string
+          };
+     … +276 lines (ctrl+o to expand)
+  ⎿  Found 2 new diagnostic issues in 1 file (ctrl+o to expand)
+
+⏺ Same client-boundary lint rule. The fix: only the true entry components
+  (rendered by a Server Component) need "use client"; leaf components imported
+  within the client graph don't, and dropping the directive avoids the
+  function-prop rule. Removing it from the run-detail leaves.
+
+⏺ Update(apps/web/components/run-detail/confirm-modal.tsx)
+  ⎿  Removed 2 lines
+      1 -"use client";                                                   
+      2 -                                                                
+      1  import { Dialog, DialogContent, DialogTitle } from "@/components
+         /ui/dialog";
+      2  
+      3  export type ConfirmAction = "approve_merge" | "block" | "rollbac
+         k";
+
+⏺ Update(apps/web/components/run-detail/action-block.tsx)
+  ⎿  Removed 2 lines
+      1 -"use client";                                                   
+      2 -                                                                
+      1  import { useState } from "react";
+      2  import type { RunDetail } from "@/lib/api-types";
+      3  import { deriveIncident, recordedReasonFrom } from "@/lib/view-m
+         odel";
+
+⏺ Update(apps/web/components/run-detail/check-row.tsx)
+  ⎿  Removed 2 lines
+      1 -"use client";                                                   
+      2 -                                                                
+      1  import { useState } from "react";
+      2  import type { CheckResult } from "@/lib/api-types";
+      3  import { fmtDuration, verdictStyle } from "@/lib/view-model";
+
+⏺ Now the run-detail entry (mutations + layout) and its route.
+
+⏺ Write(apps/web/components/run-detail/run-detail.tsx)
+  ⎿  Wrote 92 lines to apps/web/components/run-detail/run-detail.tsx
+       2 "use client";
+       3 import Link from "next/link";
+       4 import { useSuspenseQuery, useMutation, useQueryClient } from "@
+         tanstack/react-query";
+       5 import { useTRPC } from "@/trpc/client";
+       6 import { needsHumanCount } from "@/lib/view-model";
+       7 import type { RunDetail as RunDetailT } from "@/lib/api-types";
+       8 import { useToast } from "@/components/shell/toast";
+       9 import { Icon } from "@/components/primitives/icon";
+      10 import { StatusPill } from "@/components/primitives/pills";
+     … +111 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/app/(dashboard)/runs/[runId]/page.tsx)
+  ⎿  Wrote 22 lines to apps/web/app/(dashboard)/runs/[runId]/page.tsx
+       2 import { getQueryClient, HydrateClient, trpc } from "@/trpc/serv
+         er";
+       3 import { RunDetailView } from "@/components/run-detail/run-detai
+       4 l";
+       5 export const dynamic = "force-dynamic";
+       6 
+         : Promise<{ runId: string }> }) {DetailPage({ params }: { params
+       8   const { runId } = await params;
+       9   const qc = getQueryClient();
+      10   await Promise.all([
+     … +14 lines (ctrl+o to expand)
+
+⏺ Typechecking Phase 7.
+
+⏺ Bash(pnpm --filter web check-types 2>&1 | tail -25)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Clean. Committing Phase 7; starting Phase 8 — Stats/Trust.
+
+⏺ Bash(git add -A apps/web && git commit -q -m "feat(web): Run detail — evidence
+      (gateChecks/AI/monitoring), reason-gated override/rollback, confirm
+      modal, timeline" &…)
+  ⎿  done
+⏺ Write(apps/web/components/stats/panel.tsx)
+  ⎿  Wrote 11 lines to apps/web/components/stats/panel.tsx
+          sub?: string; children: React.ReactNode }) {}: { title: string;
+       3     <div style={{ marginBottom: 28 }}>
+       4       <div style={{ display: "flex", alignItems: "baseline", gap
+       5         <h2 className="display-face" style={{ fontSize: 16, font
+         Weight: 500, letterSpacing: "-0.01em", margin: 0, color: "var(--
+       6         {sub && <span className="caption">{sub}</span>}
+       8       <div style={{ padding: "20px 22px", borderRadius: 10, back
+         ground: "var(--bg-raised)", border: "1px solid var(--line)", box
+       9     </div>ar(--lit-edge)" }}>{children}</div>
+      10   );
+     … +7 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/components/stats/stat-tile.tsx)
+  ⎿  Wrote 12 lines to apps/web/components/stats/stat-tile.tsx
+        ring; value: string | number; unit?: string; sub?: string }) { st
+      2   return (
+        derRadius: 9, background: "var(--bg-raised)", border: "1px solid 
+        var(--line)", boxShadow: "var(--lit-edge)" }}>
+        </div><div className="label" style={{ marginBottom: 12 }}>{label}
+      5       <div style={{ display: "flex", alignItems: "baseline", gap:
+      6         <span className="display-face tnum" style={{ fontSize: 34
+        , fontWeight: 500, letterSpacing: "-0.025em", color: "var(--fg)" 
+      7         {unit && <span className="tnum" style={{ fontSize: 15, co
+        lor: "var(--fg-mu
+     … +11 lines (ctrl+o to expand)
+
+⏺ Now the charts (agreement line on the real 0–1 scale + overrides bars) and the
+  trust view.
+
+⏺ Write(apps/web/components/stats/charts.tsx)
+  ⎿  Wrote 134 lines to apps/web/components/stats/charts.tsx
+      2 "use client";
+      3 import { useState } from "react";
+      4 import { agreementPct } from "@/lib/view-model";
+      5 
+      6 /* ---- agreement rate over time (rate is 0–1) ---- */
+      7 export function AgreementChart({ data }: { data: { date: string; 
+        rate: number }[] }) {
+      8   const [hover, setHover] = useState<number | null>(null);
+      9   if (data.length < 2) return <div className="caption">Not enough
+         data points yet.</div>;
+     … +175 lines (ctrl+o to expand)
+
+⏺ Now the trust view and its route.
+
+⏺ Write(apps/web/components/stats/trust-view.tsx)
+  ⎿  Wrote 56 lines to apps/web/components/stats/trust-view.tsx
+       1 "use client";
+       2 
+       3 import { useSuspenseQuery } from "@tanstack/react-query";
+       4 import { useTRPC } from "@/trpc/client";
+       5 import { agreementPct } from "@/lib/view-model";
+       6 import { StatTile } from "./stat-tile";
+       7 import { Panel } from "./panel";
+       8 import { AgreementChart, OverridesChart } from "./charts";
+       9 
+      10 export function TrustView() {
+     … +66 lines (ctrl+o to expand)
+
+⏺ Write(apps/web/app/(dashboard)/stats/page.tsx)
+  ⎿  Wrote 21 lines to apps/web/app/(dashboard)/stats/page.tsx
+       2 import { getQueryClient, HydrateClient, trpc } from "@/trpc/serv
+         er";
+       3 import { TrustView } from "@/components/stats/trust-view";
+       4 
+       5 export const dynamic = "force-dynamic";
+       6 
+       7 export default async function StatsPage() {
+       8   const qc = getQueryClient();
+       9   await Promise.all([
+      10     qc.prefetchQuery(trpc.metrics.queryOptions()),
+     … +12 lines (ctrl+o to expand)
+
+⏺ Phase 8 written. Full typecheck + production build (validates all three
+  routes).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web check-types 2>&1 | tail -8…)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +27 lines (ctrl+o to expand)
+  ⎿  (timeout 5m)
+
+⏺ All three routes build green. Marking Phase 8 done. Now Phase 9 — live 
+  verification. I'll stand up a mock-backed API (the rich fixtures cover every
+  state, no Postgres needed) and render against it. Let me see how the API
+  server is wired so I can boot it with the mock provider.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A apps/web && git commit -q -m "feat(web): Stats/Trust view
+      (agreement chart 0-1, overrides chart) wired to metrics…)
+  ⎿  committed
+     === api index.ts ===
+     import { createHTTPServer } from "@trpc/server/adapters/standalone";
+     … +48 lines (ctrl+o to expand)
+
+⏺ I'll add a small mock-backed API server (no DB needed — uses the rich
+  fixtures, useful for UI dev too), boot it with the built web app, and
+  smoke-test the rendered HTML.
+
+⏺ Write(apps/api/src/mock-server.ts)
+  ⎿  Wrote 23 lines to apps/api/src/mock-server.ts
+         ne";rt { createHTTPServer } from "@trpc/server/adapters/standalo
+       2 import cors from "cors";
+       4 import { createMockDashboardApi } from "./mock-dashboard";
+       5 
+       6 /**
+         `. Serves theI server backed by the in-memory mock `DashboardApi
+       8  * same `appRouter` as `index.ts` so the dashboard can run end-t
+       9  * rich fixtures (every decision/status state) without Postgres 
+         — handy for UI
+      10  * development and smoke tests.
+     … +18 lines (ctrl+o to expand)
+
+⏺ Starting the mock API and the built web server in the background.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      PORT=3002 WEB_ORIGIN=http://localhost:3000 pnpm --filter api exec tsx
+      src/mock-server.ts)
+  ⎿  Running in the background (↓ to manage)
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web start)
+  ⎿  Running in the background (↓ to manage)
+⏺ Polling until both servers are ready, then smoke-testing the rendered HTML.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== mock API health ==="…)
+  ⎿  === mock API health ===
+     {
+       "result": {
+     … +17 lines (ctrl+o to expand)
+
+⏺ Mock API serves fixtures; web returns 200. Now verifying the actual rendered
+  HTML of each surface.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      check() { local url="$1"; shift; local html; html=$(curl -s --max-time 30
+      "$url"); echo "── $url"; for s in "$@"; do if grep…)
+  ⎿  ── http://localhost:3000/
+       ✓ Open reviews
+       ✓ Needs you
+     … +26 lines (ctrl+o to expand)
+
+⏺ All surfaces render correctly with live data. Now verifying the override
+  mutation end-to-end and running the lint/type gates.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== override mutation (POST) ==="…)
+  ⎿  === override mutation (POST) ===
+     [{"result":{"data":{"runId":"run_02","pr":{"number":483,"title":"Refac
+     tor session token rotation","repo":"askable-services","author":"mei","
+     … +8 lines (ctrl+o to expand)
+
+⏺ Override mutation succeeded and lint is clean. Confirming the mutation
+  persisted (decision + recorded reason) and running the full-repo typecheck.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== run_02 after override ==="…)
+  ⎿  === run_02 after override ===
+     "outcome":"merged"
+     Human override: verified via smoke test
+     … +21 lines (ctrl+o to expand)
+  ⎿  (timeout 4m)
+
+⏺ Everything's green end-to-end: override persisted (outcome: "merged" +
+  recorded reason → drives the ConfirmedSummary), whole-repo turbo check-types
+  15/15, web lint clean, all routes build, all surfaces render with live data.
+  Let me shut down the servers and keep the mock server as a handy dev:mock
+  script.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Stop Task
+  ⎿  cd /Users/tyron/Developer/auto-gate
+     PORT=3002 WEB_ORIGIN=http://localhost:3000 pnpm --filter api exec tsx
+     src/mock-server.ts · stopped
+
+⏺ Stop Task
+  ⎿  cd /Users/tyron/Developer/auto-gate
+     pnpm --filter web start · stopped
+
+⏺ Update(apps/api/package.json)
+  ⎿  Added 1 line
+       8    },
+       9    "scripts": {
+      10      "dev": "tsx watch src/index.ts",
+      11 +    "dev:mock": "tsx watch src/mock-server.ts",                
+      12      "start": "tsx src/index.ts",
+      13      "worker": "tsx src/worker.ts",
+      14      "seed-fixture": "tsx src/seed-fixture.ts",
+
+⏺ Servers down. Committing the mock-server dev convenience, then closing out
+  Phase 9.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add apps/api/src/mock-server.ts apps/api/package.json…)
+  ⎿  === final git log ===
+     c8be512 feat(api): DB-free mock-backed server (dev:mock) for UI dev +
+     smoke tests
+     … +15 lines (ctrl+o to expand)
+
+❯ commit this all and push it up 
+
+⏺ Everything's already committed across 8 clean commits. Let me confirm the tree
+  is clean and push.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== status ===" && git status --short…)
+  ⎿  === status ===
+      M pnpm-lock.yaml
+     ?? chat_history/
+     … +18 lines (ctrl+o to expand)
+
+⏺ A couple of untracked items I didn't expect — let me look before adding
+  anything (I won't blindly git add -A).
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      echo "=== chat_history/ ===" && ls -la chat_history/ 2>/dev/null | head &&
+      find chat_history -type f 2>/dev/null | head…)
+  ⎿  === chat_history/ ===
+     total 368
+     drwxr-xr-x@  3 tyron  staff      96 13 Jun 16:18 .
+     … +22 lines (ctrl+o to expand)
+⏺ Three things to reconcile:
+  - pnpm-lock.yaml (modified) — must be committed; it reflects the deps I added.
+  - docs/design-reference/ — the vendored Autogate prototype source (legit
+  reference/provenance). Commit.
+  - chat_history/ty.txt — a 185KB file I did not create and that's unrelated to
+  this work. I'll leave it out rather than commit a stray chat dump into the
+  repo.
+
+  Committing the two legitimate items and pushing.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add docs/design-reference…)
+  ⎿  === pushing ===
+     To github.com:isaacpovey/autogate.git
+      ! [rejected]        main -> main (fetch first)
+     … +10 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ Push rejected — the remote has new commits (the other dev stream pushed). Also
+  apps/api/package.json just got an intentional external edit (root .env
+  loading). Let me commit that, rebase onto the remote, then push.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add apps/api/package.json…)
+  ⎿  === fetch + rebase ===
+      * [new branch]      autogate-test/10-blast-radius -> origin/autogate-
+     test/10-blast-radius
+     … +6 lines (ctrl+o to expand)
+
+❯ Just commit everything 
+
+⏺ Understood — committing everything (including chat_history/, since you've now
+  explicitly asked twice). Then rebase onto the remote and push.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git add -A…)
+  ⎿  M  apps/web/next-env.d.ts
+     A  chat_history/ty.txt
+     === now rebase ===
+     … +6 lines (ctrl+o to expand)
+
+⏺ Rebased cleanly onto the remote (no conflicts — the other stream touched the
+  backend, I touched apps/web). Pushing.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      git push origin main 2>&1 | tail -8…)
+  ⎿  To github.com:isaacpovey/autogate.git
+        ce2d547..845082c  main -> main
+     === status ===
+     ## main...origin/main
+  ⎿  (timeout 2m)
+
+⏺ Pushed — main is up to date and clean. Since I rebased onto the other stream's
+  backend work, let me confirm the dashboard still typechecks against the
+  (possibly updated) contracts.
+
+⏺ Bash(cd /Users/tyron/Developer/auto-gate
+      pnpm --filter web check-types 2>&1 | tail -8)
+  ⎿  > web@0.1.0 check-types /Users/tyron/Developer/auto-gate/apps/web
+     > next typegen && tsc --noEmit
+     … +2 lines (ctrl+o to expand)
+
+⏺ Done — pushed and verified post-rebase.
+
+  What shipped
+
+  The Autogate dashboard from your Claude Design handoff is built into apps/web
+  and live on origin/main (14 commits, rebased cleanly onto the other stream's
+  backend work — no conflicts).
+
+  Surfaces (Next.js 16 routes, wired to the real tRPC DashboardApi):
+  - / Open reviews — incident bar → Needs you (effort-sorted) → In progress
+  (gate progress for awaiting_checks) → Handled-by-system (In production
+  collapsed by default, Auto-merged riskiest-first), with repo + status filters.
+  - /runs/[runId] Run detail — orchestrator brief, layered evidence (Static = 
+  gateChecks, AI = agent CheckResults with expandable findings, Monitoring
+  panel), "layers disagree" chip, reason-gated approve/block + rollback →
+  confirm modal → recorded-reason record, timeline.
+  - /stats Trust — agreement-rate line chart (real 0–1 scale), escalation
+  precision/recall, overrides-per-week — trimmed to what TrustMetrics actually
+  provides (no invented panels).
+  - Shell — collapsible rail, topbar (incident/agreement/live), dark+light
+  theme, toast.
+
+  Foundation: warm-graphite token layer ported into Tailwind v4 + shadcn
+  theming, Bricolage/Instrument Sans fonts, lucide icons, a pure
+  lib/view-model.ts for all derivations (needs_human→slate, effort, grouping,
+  incident, recorded-reason).
+
+  Verified: turbo check-types 15/15, web lint clean, all routes build, and a
+  live smoke test against a new DB-free mock API (pnpm --filter api dev:mock) —
+  every surface renders real fixture data and the override mutation persisted 
+  end-to-end (outcome: merged + recorded reason).
+
+  Two notes for transparency:
+  - Per your call I skipped TDD/tests — verification was build + live render +
+  the type/lint gates.
+  - I committed chat_history/ty.txt as you asked ("commit everything"), though I
+  didn't create it and it's unrelated to the dashboard — if it shouldn't be in
+  the repo, say the word and I'll git rm it.
+
+  One thing I couldn't fully confirm without a browser: the light-theme visuals
+  and exact font rendering (the CSS-var font wiring is standard, falls back
+  gracefully). Want me to spin it up and eyeball those, or run /code-review over
+  the diff?
+
+✻ Sautéed for 29m 4s
