@@ -3,6 +3,11 @@ import { getQueryClient, HydrateClient, trpc } from "../trpc/server";
 import { RunsList } from "./_components/runs-list";
 import styles from "./page.module.css";
 
+// The dashboard renders live run data fetched at request time, so opt this
+// route out of static prerender — otherwise `next build` tries to reach the
+// API (which isn't running during the build) and fails with ECONNREFUSED.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const queryClient = getQueryClient();
 
