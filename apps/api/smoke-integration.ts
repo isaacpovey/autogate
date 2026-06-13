@@ -7,7 +7,6 @@ import {
   type CheckSource,
   type MergeResult,
   type Policy,
-  type PostStatusArgs,
   type PullRequest,
   type RepoConfig,
   type RunContext,
@@ -77,7 +76,7 @@ const greenVcs = (): VcsProvider => ({
     allPassed: true,
     checks: greenChecks,
   }),
-  postStatus: async (_args: PostStatusArgs): Promise<void> => {},
+  postStatus: async (): Promise<void> => {},
   postBrief: async (): Promise<void> => {},
   merge: async (): Promise<MergeResult> => ({ merged: true, sha: pr.headSha }),
 });

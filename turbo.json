@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["PORT", "WEB_ORIGIN", "NEXT_PUBLIC_API_URL"],
+  "globalEnv": ["PORT", "WEB_ORIGIN", "NEXT_PUBLIC_API_URL", "DATABASE_URL", "QDRANT_URL", "OPENAI_API_KEY", "WORKER_POLL_INTERVAL_MS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

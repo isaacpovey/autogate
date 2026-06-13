@@ -7,9 +7,7 @@ import {
   type CheckSource,
   type MergeResult,
   type Policy,
-  type PostStatusArgs,
   type RepoConfig,
-  type RunContext,
   type VcsProvider,
   type Verdict,
 } from "@autogate/contracts";
@@ -64,7 +62,7 @@ const greenVcs = (): VcsProvider => ({
     allPassed: true,
     checks: greenChecks,
   }),
-  postStatus: async (_args: PostStatusArgs): Promise<void> => {},
+  postStatus: async (): Promise<void> => {},
   postBrief: async (): Promise<void> => {},
   merge: async (): Promise<MergeResult> => ({ merged: true, sha: "fixture" }),
 });
@@ -74,7 +72,7 @@ const passingAgent = ({ sourceId }: { sourceId: string }): CheckSource => ({
   id: sourceId,
   layer: "ai",
   appliesTo: () => true,
-  run: async (_ctx: RunContext): Promise<Verdict> =>
+  run: async (): Promise<Verdict> =>
     verdictSchema.parse({
       sourceId,
       status: "pass",
