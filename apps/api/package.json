@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:mock": "tsx watch src/mock-server.ts",
     "start": "tsx src/index.ts",
     "worker": "tsx src/worker.ts",
     "seed-fixture": "tsx src/seed-fixture.ts",
