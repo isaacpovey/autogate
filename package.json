@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "agent": "tsx packages/cli/src/index.ts agent",
-    "eval": "tsx packages/cli/src/index.ts eval"
+    "eval": "tsx packages/cli/src/index.ts eval",
+    "autogate": "tsx packages/cli/src/index.ts"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

@@ -17,6 +17,7 @@
     "@autogate/agent-sdk": "workspace:*",
     "@autogate/agents": "workspace:*",
     "@autogate/contracts": "workspace:*",
+    "api": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

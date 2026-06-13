@@ -12,8 +12,8 @@ import type {
   Verdict,
   VcsProvider,
 } from "@autogate/contracts";
-import { decide, type Decision } from "./decide";
-import { buildBrief } from "./buildBrief";
+import { decide, type Decision } from "./decide.js";
+import { buildBrief } from "./buildBrief.js";
 
 /**
  * Everything the pipeline touches the outside world through. All I/O is here as

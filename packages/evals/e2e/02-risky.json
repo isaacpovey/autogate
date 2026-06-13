@@ -1,0 +1,40 @@
+{
+  "name": "risky",
+  "description": "Large, complex refactor; risk-scoring puts aggregate risk over the escalate threshold.",
+  "pr": {
+    "number": 142,
+    "title": "Rework job scheduler to a priority queue",
+    "repo": "askable/autogate",
+    "author": "alex",
+    "url": "https://github.com/askable/autogate/pull/142",
+    "branch": "feat/priority-scheduler",
+    "baseRef": "main",
+    "headRef": "feat/priority-scheduler",
+    "headSha": "cc33dd44",
+    "description": "Replaces the FIFO scheduler with a priority queue touching 14 files across the worker and store layers. Behaviour-preserving but broad."
+  },
+  "files": {
+    "src/worker/scheduler.ts": "export const schedule = () => {\n  /* priority queue rework */\n};\n"
+  },
+  "agents": {
+    "risk-scoring": {
+      "status": "warn",
+      "confidence": 0.82,
+      "summary": "Broad blast radius across worker + store with non-trivial concurrency changes; high scope and complexity.",
+      "findings": [],
+      "scope": 72,
+      "complexity": 68,
+      "sensitivity": 40,
+      "riskContribution": 60
+    },
+    "semantic-review": {
+      "status": "pass",
+      "confidence": 0.78,
+      "summary": "The change implements the described priority-queue rework and preserves observable ordering guarantees.",
+      "findings": [],
+      "intentSummary": "Swap FIFO scheduling for a priority queue without changing public behaviour.",
+      "unmetIntent": []
+    }
+  },
+  "expect": { "decision": "escalate", "escalate": true }
+}

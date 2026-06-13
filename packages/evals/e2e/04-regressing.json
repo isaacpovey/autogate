@@ -1,0 +1,45 @@
+{
+  "name": "regressing",
+  "description": "Touches a sensitive auth path; aggregate risk is low and agents agree, but the path forces escalation.",
+  "pr": {
+    "number": 188,
+    "title": "Tweak session cookie max-age",
+    "repo": "askable/autogate",
+    "author": "noor",
+    "url": "https://github.com/askable/autogate/pull/188",
+    "branch": "fix/session-maxage",
+    "baseRef": "main",
+    "headRef": "fix/session-maxage",
+    "headSha": "77aa88bb",
+    "description": "Lowers the session cookie max-age from 30d to 7d to reduce stale-session exposure."
+  },
+  "files": {
+    "src/auth/session.ts": "export const SESSION_MAX_AGE_DAYS = 7;\n"
+  },
+  "agents": {
+    "security-review": {
+      "status": "warn",
+      "confidence": 0.7,
+      "summary": "Shortening session lifetime is generally safe but it changes authentication behaviour, which warrants a human look.",
+      "findings": [
+        {
+          "severity": "medium",
+          "title": "Session lifetime change",
+          "detail": "SESSION_MAX_AGE_DAYS dropped from 30 to 7; verify no integration depends on the longer window.",
+          "file": "src/auth/session.ts",
+          "line": 1
+        }
+      ],
+      "vulnerabilityClasses": ["session-management"]
+    },
+    "semantic-review": {
+      "status": "pass",
+      "confidence": 0.9,
+      "summary": "The change matches the stated intent of reducing the session window.",
+      "findings": [],
+      "intentSummary": "Reduce session cookie max-age to 7 days.",
+      "unmetIntent": []
+    }
+  },
+  "expect": { "decision": "escalate", "escalate": true }
+}

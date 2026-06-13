@@ -1,0 +1,7 @@
+{
+  "id": "autogate-contracts",
+  "ragInclude": ["packages/contracts/src"],
+  "sensitivePaths": [],
+  "requiredChecks": "all",
+  "agents": ["security-review", "semantic-review"]
+}

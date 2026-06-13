@@ -36,3 +36,6 @@ yarn-error.log*
 
 # local secrets (GitHub App PEM, etc.)
 .secrets/
+
+# local-only compose customizations (e.g. alternate host ports)
+docker-compose.override.yml

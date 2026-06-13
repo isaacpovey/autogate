@@ -1,0 +1,47 @@
+{
+  "name": "clean",
+  "description": "Low-risk docs + helper change; all agents pass, aggregate risk well under threshold.",
+  "pr": {
+    "number": 101,
+    "title": "Add formatDuration helper and document it",
+    "repo": "askable/autogate",
+    "author": "sam",
+    "url": "https://github.com/askable/autogate/pull/101",
+    "branch": "chore/format-duration",
+    "baseRef": "main",
+    "headRef": "chore/format-duration",
+    "headSha": "aa11bb22",
+    "description": "Adds a pure formatDuration(ms) helper and a short usage note in the README. No behavioural change to existing call sites."
+  },
+  "files": {
+    "src/util/format.ts": "export const formatDuration = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;\n"
+  },
+  "agents": {
+    "risk-scoring": {
+      "status": "pass",
+      "confidence": 0.9,
+      "summary": "Small, isolated, pure-function addition with documentation; minimal scope and no sensitive surface.",
+      "findings": [],
+      "scope": 10,
+      "complexity": 8,
+      "sensitivity": 5,
+      "riskContribution": 10
+    },
+    "semantic-review": {
+      "status": "pass",
+      "confidence": 0.93,
+      "summary": "Implementation matches the stated intent: a formatting helper plus a doc note.",
+      "findings": [],
+      "intentSummary": "Add and document a duration formatting helper.",
+      "unmetIntent": []
+    },
+    "security-review": {
+      "status": "pass",
+      "confidence": 0.96,
+      "summary": "No secrets, no injection surface, no auth changes.",
+      "findings": [],
+      "vulnerabilityClasses": []
+    }
+  },
+  "expect": { "decision": "auto_merge", "escalate": false }
+}

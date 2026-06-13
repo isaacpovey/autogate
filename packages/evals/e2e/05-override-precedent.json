@@ -1,0 +1,69 @@
+{
+  "name": "override-precedent",
+  "description": "The trust loop: an approved precedent in memory flips the verdict from escalate to auto_merge.",
+  "pr": {
+    "number": 320,
+    "title": "Round checkout totals half-up instead of half-even",
+    "repo": "askable/shop",
+    "author": "deval",
+    "url": "https://github.com/askable/shop/pull/320",
+    "branch": "fix/checkout-rounding",
+    "baseRef": "main",
+    "headRef": "fix/checkout-rounding",
+    "headSha": "99cc00dd",
+    "description": "Switches checkout total rounding from banker's rounding (half-even) to half-up to match finance's documented expectation."
+  },
+  "files": {
+    "src/checkout/pricing.ts": "export const roundTotal = (n: number): number => Math.round(n * 100) / 100;\n"
+  },
+  "policy": {
+    "riskEscalateThreshold": 50,
+    "escalateOnDisagreement": true,
+    "alwaysEscalatePaths": []
+  },
+  "trustLoop": {
+    "agentId": "semantic-review",
+    "query": "checkout total rounding half-up half-even pricing precedent decision",
+    "precedent": {
+      "id": "askable/shop#311",
+      "text": "PR #311 (askable/shop): Align rounding with finance spec. Verdicts: semantic-review=warn. Decision: approve_merge — Finance confirmed half-up is the documented, intended rounding for checkout totals; this pattern is approved.",
+      "metadata": {
+        "repo": "askable/shop",
+        "number": 311,
+        "decision": "approve_merge",
+        "reason": "Finance confirmed half-up rounding is the intended, documented behaviour for checkout totals.",
+        "author": "human-reviewer"
+      }
+    },
+    "withoutPrecedent": {
+      "response": {
+        "status": "fail",
+        "confidence": 0.62,
+        "summary": "The PR changes checkout total rounding, which diverges from the half-even behaviour documented in the code. Without a prior decision on record this looks like a behavioural regression.",
+        "findings": [
+          {
+            "severity": "critical",
+            "title": "Unreviewed change to money rounding",
+            "detail": "roundTotal switches from half-even to half-up rounding for checkout totals, changing customer-facing amounts. No precedent justifies the change.",
+            "file": "src/checkout/pricing.ts",
+            "line": 1
+          }
+        ],
+        "intentSummary": "Change checkout total rounding to half-up.",
+        "unmetIntent": ["Rounding direction diverges from the documented half-even behaviour with no recorded justification."]
+      },
+      "expect": { "decision": "escalate", "escalate": true }
+    },
+    "withPrecedent": {
+      "response": {
+        "status": "pass",
+        "confidence": 0.95,
+        "summary": "An approved precedent (askable/shop#311) confirms half-up is the documented, intended rounding for checkout totals. This change matches that approved decision.",
+        "findings": [],
+        "intentSummary": "Change checkout total rounding to half-up, matching an approved precedent.",
+        "unmetIntent": []
+      },
+      "expect": { "decision": "auto_merge", "escalate": false }
+    }
+  }
+}

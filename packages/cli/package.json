@@ -13,7 +13,9 @@
   "dependencies": {
     "@autogate/agents": "workspace:*",
     "@autogate/contracts": "workspace:*",
-    "@autogate/evals": "workspace:*"
+    "@autogate/evals": "workspace:*",
+    "@autogate/memory-qdrant": "workspace:*",
+    "@autogate/store-postgres": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

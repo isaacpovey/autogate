@@ -1,0 +1,45 @@
+{
+  "name": "flagged",
+  "description": "Agents disagree: security flags a fail while semantic passes — escalate on disagreement.",
+  "pr": {
+    "number": 167,
+    "title": "Expose internal widget metrics endpoint",
+    "repo": "askable/autogate",
+    "author": "rio",
+    "url": "https://github.com/askable/autogate/pull/167",
+    "branch": "feat/widget-metrics",
+    "baseRef": "main",
+    "headRef": "feat/widget-metrics",
+    "headSha": "ee55ff66",
+    "description": "Adds GET /internal/widget-metrics returning per-widget counters for the ops dashboard."
+  },
+  "files": {
+    "src/feature/widget.ts": "export const widgetMetrics = (req, res) => res.json(collect());\n"
+  },
+  "agents": {
+    "security-review": {
+      "status": "fail",
+      "confidence": 0.9,
+      "summary": "The new metrics endpoint has no authorization check; any caller can read internal per-widget counters.",
+      "findings": [
+        {
+          "severity": "high",
+          "title": "Missing authorization on internal endpoint",
+          "detail": "GET /internal/widget-metrics is registered without an auth middleware, exposing internal counters to unauthenticated callers.",
+          "file": "src/feature/widget.ts",
+          "line": 1
+        }
+      ],
+      "vulnerabilityClasses": ["missing-authz"]
+    },
+    "semantic-review": {
+      "status": "pass",
+      "confidence": 0.85,
+      "summary": "The endpoint returns the per-widget counters described in the PR; intent is met.",
+      "findings": [],
+      "intentSummary": "Expose per-widget counters for the ops dashboard.",
+      "unmetIntent": []
+    }
+  },
+  "expect": { "decision": "escalate", "escalate": true }
+}

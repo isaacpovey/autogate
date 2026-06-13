@@ -233,6 +233,12 @@ importers:
       '@autogate/evals':
         specifier: workspace:*
         version: link:../evals
+      '@autogate/memory-qdrant':
+        specifier: workspace:*
+        version: link:../memory-qdrant
+      '@autogate/store-postgres':
+        specifier: workspace:*
+        version: link:../store-postgres
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -319,6 +325,9 @@ importers:
       '@autogate/contracts':
         specifier: workspace:*
         version: link:../contracts
+      api:
+        specifier: workspace:*
+        version: link:../../apps/api
       zod:
         specifier: ^3.25.76
         version: 3.25.76
