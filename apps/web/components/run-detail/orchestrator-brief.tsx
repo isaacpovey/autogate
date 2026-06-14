@@ -1,3 +1,4 @@
+import Markdown from "react-markdown";
 import type { RunDetail } from "@/lib/api-types";
 
 export function OrchestratorBrief({ run }: { run: RunDetail }) {
@@ -8,7 +9,11 @@ export function OrchestratorBrief({ run }: { run: RunDetail }) {
         <span style={{ width: 6, height: 6, borderRadius: 6, background: "var(--info)" }} />
         <span className="label" style={{ color: "var(--info)" }}>Orchestrator brief</span>
       </div>
-      {d.brief && <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: "var(--fg)", maxWidth: 720 }}>{d.brief}</p>}
+      {d.brief && (
+        <div className="markdown-body" style={{ fontSize: 14.5, lineHeight: 1.6, color: "var(--fg)", maxWidth: 720 }}>
+          <Markdown>{d.brief}</Markdown>
+        </div>
+      )}
       <div style={{ marginTop: d.brief ? 15 : 0, display: "flex", flexDirection: "column", gap: 9 }}>
         {d.reasons.map((r, i) => (
           <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
