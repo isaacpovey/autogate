@@ -1,31 +1,30 @@
 import {
   mockMemory,
   mockSandbox,
-  verdictSchema,
   type AwaitAllChecksResult,
   type CheckRun,
-  type CheckSource,
   type MergeResult,
   type Policy,
   type RepoConfig,
   type VcsProvider,
-  type Verdict,
 } from "@autogate/contracts";
 import { createQueue, createRunResults, createStore, runMigrations } from "@autogate/store-postgres";
+import { getAgent } from "@autogate/agents";
+import { createClaudeAgentSdk } from "@autogate/agent-claude";
+import { DEFAULT_POLICY, loadE2eFixtures, type E2eFixture } from "@autogate/evals";
 import { runPipeline, type OrchestratorPorts } from "./orchestrator/index";
 
 /**
- * Orchestrator worker. Drains the REAL Postgres job queue and runs the L2 agent
- * pipeline for each claimed run, then loops. This is the long-lived counterpart
- * to the HTTP api (`index.ts`): the api/webhook layer seeds a `StoredRun` and
- * enqueues a `{ runId }` job; this worker claims it and drives `runPipeline` to
- * completion.
+ * Orchestrator worker. Drains the REAL Postgres job queue and, for each claimed
+ * run, replays a bundled end-to-end scenario fixture through `runPipeline` with
+ * the REAL Claude Agent SDK driving the Layer-2 agents. The fixture supplies the
+ * code the agents read (seeded into a mock sandbox) and the set of agents to
+ * fan out; Claude actually investigates that checkout and returns verdicts.
  *
- * Ports are wired pragmatically for the compose stack: REAL Store + Queue (the
- * point of this loop) with a mock VCS (all-green gate), mock sandbox, mock
- * memory, and low-risk mock-agent-backed AI CheckSources. The real Podman
- * sandbox and GitHub VCS are exercised by tickets 02/04, not from inside a
- * compose container.
+ * Real Store + Queue (the point of this loop) and a green mock VCS gate so the
+ * pipeline proceeds into Layer 2. The Podman sandbox and live GitHub VCS remain
+ * out of scope inside a compose container; scenario fixtures stand in for the
+ * checked-out PR code.
  */
 
 type JobPayload = { runId: string };
@@ -36,20 +35,6 @@ const greenChecks: CheckRun[] = [
   { name: "check-types", conclusion: "success" },
   { name: "lint", conclusion: "success" },
 ];
-
-const policy: Policy = {
-  riskEscalateThreshold: 50,
-  escalateOnDisagreement: true,
-  alwaysEscalatePaths: ["src/auth/**"],
-};
-
-const repoConfig: RepoConfig = {
-  id: "worker-fixture",
-  ragInclude: ["."],
-  sensitivePaths: [],
-  requiredChecks: "all",
-  agents: ["semantic", "security"],
-};
 
 /** All-green VCS so the pipeline proceeds past the Layer 1 gate into Layer 2. */
 const greenVcs = (): VcsProvider => ({
@@ -67,33 +52,75 @@ const greenVcs = (): VcsProvider => ({
   merge: async (): Promise<MergeResult> => ({ merged: true, sha: "fixture" }),
 });
 
-/** Two low-risk passing AI sources to confirm the Layer 2 fan-out persists verdicts. */
-const passingAgent = ({ sourceId }: { sourceId: string }): CheckSource => ({
-  id: sourceId,
-  layer: "ai",
-  appliesTo: () => true,
-  run: async (): Promise<Verdict> =>
-    verdictSchema.parse({
-      sourceId,
-      status: "pass",
-      confidence: 0.95,
-      riskContribution: 5,
-      summary: `Low-risk pass from worker fixture source ${sourceId}.`,
-      findings: [],
-    }),
+const repoConfigFor = ({ fixture }: { fixture: E2eFixture }): RepoConfig => ({
+  id: fixture.pr.repo,
+  ragInclude: Object.keys(fixture.files ?? {}),
+  sensitivePaths: fixture.sensitivePaths ?? [],
+  requiredChecks: fixture.requiredChecks ?? "all",
+  agents: Object.keys(fixture.agents),
 });
+
+/** Deterministically map a PR number onto one of the agent-bearing fixtures. */
+const fixtureForPr = ({
+  fixtures,
+  prNumber,
+}: {
+  fixtures: E2eFixture[];
+  prNumber: number;
+}): E2eFixture => {
+  const index = (((prNumber - 1) % fixtures.length) + fixtures.length) % fixtures.length;
+  const fixture = fixtures[index];
+  if (fixture === undefined) {
+    throw new Error("worker: fixture index out of range");
+  }
+  return fixture;
+};
 
 const sleep = ({ ms }: { ms: number }): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const processJob =
-  ({ ports, queue }: { ports: OrchestratorPorts; queue: ReturnType<typeof createQueue<JobPayload>> }) =>
+  ({
+    sdk,
+    fixtures,
+    store,
+    runResults,
+    queue,
+  }: {
+    sdk: ReturnType<typeof createClaudeAgentSdk>;
+    fixtures: E2eFixture[];
+    store: ReturnType<typeof createStore>;
+    runResults: ReturnType<typeof createRunResults>;
+    queue: ReturnType<typeof createQueue<JobPayload>>;
+  }) =>
   async ({ id, runId }: { id: string; runId: string }): Promise<void> => {
-    console.log(`[worker] claimed job ${id} for run ${runId}`);
+    const existing = await store.runs.get({ runId });
+    if (existing === undefined) {
+      throw new Error(`worker: no run stored for ${runId}`);
+    }
+    const fixture = fixtureForPr({ fixtures, prNumber: existing.pr.number });
+    console.log(
+      `[worker] claimed job ${id} for run ${runId} — replaying fixture "${fixture.name}" with REAL Claude (agents: ${Object.keys(fixture.agents).join(", ")})`,
+    );
+
+    const ports: OrchestratorPorts = {
+      vcs: greenVcs(),
+      sandbox: mockSandbox({ seed: { files: fixture.files ?? {} } }),
+      store,
+      memory: mockMemory({ seed: fixture.memory ?? {} }),
+      registry: Object.keys(fixture.agents).map((agentId) =>
+        getAgent({ id: agentId }).build({ sdk }),
+      ),
+      policy: fixture.policy ?? (DEFAULT_POLICY as Policy),
+      resolveRepoConfig: () => repoConfigFor({ fixture }),
+      now: () => new Date().toISOString(),
+      runResults,
+    };
+
     const detail = await runPipeline({ ports })(runId);
     await queue.complete({ id });
     console.log(
-      `[worker] completed job ${id}: run ${runId} status=${detail.status} outcome=${detail.decision.outcome} verdicts=${detail.checks.length}`,
+      `[worker] completed job ${id}: run ${runId} status=${detail.status} outcome=${detail.decision.outcome} risk=${detail.riskScore} verdicts=${detail.checks.length}`,
     );
   };
 
@@ -102,28 +129,30 @@ const main = async (): Promise<void> => {
   if (connectionString === undefined) {
     throw new Error("worker: DATABASE_URL not set in environment.");
   }
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (apiKey === undefined || apiKey.length === 0) {
+    throw new Error("worker: ANTHROPIC_API_KEY not set — required to run the real Claude pipeline.");
+  }
+  const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
 
   await runMigrations({ connectionString });
 
+  const sdk = createClaudeAgentSdk({ apiKey, model });
   const store = createStore({ connectionString });
   const queue = createQueue<JobPayload>({ connectionString });
   const runResults = createRunResults({ connectionString });
 
-  const ports: OrchestratorPorts = {
-    vcs: greenVcs(),
-    sandbox: mockSandbox({ seed: { files: { "README.md": "# fixture\n" } } }),
-    store,
-    memory: mockMemory(),
-    registry: [passingAgent({ sourceId: "security" }), passingAgent({ sourceId: "semantic" })],
-    policy,
-    resolveRepoConfig: () => repoConfig,
-    now: () => new Date().toISOString(),
-    runResults,
-  };
+  const allFixtures = loadE2eFixtures();
+  const fixtures = allFixtures.filter((fixture) => Object.keys(fixture.agents).length > 0);
+  if (fixtures.length === 0) {
+    throw new Error("worker: no agent-bearing e2e fixtures found to replay.");
+  }
 
-  const runJob = processJob({ ports, queue });
+  const runJob = processJob({ sdk, fixtures, store, runResults, queue });
 
-  console.log(`[worker] online; polling queue every ${POLL_INTERVAL_MS}ms`);
+  console.log(
+    `[worker] online (model ${model}); ${fixtures.length} scenario fixtures; polling queue every ${POLL_INTERVAL_MS}ms`,
+  );
 
   const loop = async (): Promise<void> => {
     const job = await queue.claim();

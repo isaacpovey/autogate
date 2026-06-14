@@ -17,8 +17,11 @@
     "smoke": "tsx --env-file-if-exists=../../.env smoke.ts"
   },
   "dependencies": {
+    "@autogate/agent-claude": "workspace:*",
+    "@autogate/agents": "workspace:*",
     "@autogate/api": "workspace:*",
     "@autogate/contracts": "workspace:*",
+    "@autogate/evals": "workspace:*",
     "@autogate/infra": "workspace:*",
     "@autogate/sandbox": "workspace:*",
     "@autogate/store-postgres": "workspace:*",

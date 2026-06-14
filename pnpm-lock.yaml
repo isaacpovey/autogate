@@ -29,12 +29,21 @@ importers:
 
   apps/api:
     dependencies:
+      '@autogate/agent-claude':
+        specifier: workspace:*
+        version: link:../../packages/agent-claude
+      '@autogate/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
       '@autogate/api':
         specifier: workspace:*
         version: link:../../packages/api
       '@autogate/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@autogate/evals':
+        specifier: workspace:*
+        version: link:../../packages/evals
       '@autogate/infra':
         specifier: workspace:*
         version: link:../../infra
