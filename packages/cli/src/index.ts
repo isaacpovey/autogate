@@ -11,7 +11,7 @@ import {
   runAllAgentEvals,
   runE2eSuite,
 } from '@autogate/evals';
-import { dbMigrate, dbSeed, ingest, runEnqueue } from './infra.js';
+import { dbMigrate, dbSeed, ingest, runEnqueue, runScenarios } from './infra.js';
 
 type Flags = {
   fixture?: string;
@@ -67,6 +67,7 @@ const usage = [
   '  db seed [--json]                           write the demo dataset',
   '  ingest <repoConfig> [--root <dir>] [--json]  ingest a repo into Qdrant; report counts',
   '  run enqueue --repo <id> --pr <n> [--json]  seed + enqueue a run; print the new run id',
+  '  run scenarios [--json]                     seed + enqueue one run per bundled scenario fixture',
   '',
   `Agents: ${agentIds.join(', ')}`,
   '',
@@ -159,6 +160,10 @@ const cmdIngest = async ({ rest }: { rest: string[] }): Promise<void> => {
 const cmdRun = async ({ rest }: { rest: string[] }): Promise<void> => {
   const [sub, ...tail] = rest;
   const { flags } = parseFlags({ tokens: tail });
+  if (sub === 'scenarios') {
+    await runScenarios({ json: flags.json });
+    process.exit(0);
+  }
   if (sub !== 'enqueue') {
     return fail(`unknown run subcommand "${sub ?? ''}"`);
   }

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { repoConfigSchema, type PullRequest, type StoredRun } from '@autogate/contracts';
 import { createQueue, createRunResults, createStore, runMigrations } from '@autogate/store-postgres';
 import { createMemoryClient, ingestRepo } from '@autogate/memory-qdrant';
+import { loadE2eFixtures } from '@autogate/evals';
 import { resolveEmbedder } from './embedder.js';
 import { seedStore } from './seed.js';
 
@@ -119,5 +120,46 @@ export const runEnqueue = async ({
     json,
     line: `run enqueue: ok (runId=${runId} job=${jobId} repo=${repo} pr=${prNumber})`,
     data: { command: 'run enqueue', ok: true, runId, jobId, repo, pr: prNumber },
+  });
+};
+
+/**
+ * `run scenarios` — seed + enqueue one run per bundled e2e scenario fixture,
+ * each carrying the fixture's real PR (title/description/branch) so the
+ * dashboard shows the actual synthetic scenario. The job payload names the
+ * fixture so the worker replays exactly that scenario.
+ */
+export const runScenarios = async ({ json }: { json: boolean }): Promise<void> => {
+  const connectionString = databaseUrl();
+  const store = createStore({ connectionString });
+  const queue = createQueue<{ runId: string; fixture: string }>({ connectionString });
+
+  const fixtures = loadE2eFixtures().filter(
+    (fixture) => Object.keys(fixture.agents).length > 0,
+  );
+  const now = new Date().toISOString();
+
+  const seeded = await Promise.all(
+    fixtures.map(async (fixture) => {
+      const runId = `run-${randomUUID()}`;
+      const pr: PullRequest = fixture.pr;
+      const run: StoredRun = {
+        runId,
+        pr,
+        status: 'awaiting_checks',
+        createdAt: now,
+        updatedAt: now,
+      };
+      await store.runs.save({ run });
+      const jobId = `job-${runId}`;
+      await queue.enqueue({ id: jobId, payload: { runId, fixture: fixture.name } });
+      return { fixture: fixture.name, runId, pr: pr.number, title: pr.title };
+    }),
+  );
+
+  emit({
+    json,
+    line: `run scenarios: ok (${seeded.length} enqueued: ${seeded.map((s) => s.fixture).join(', ')})`,
+    data: { command: 'run scenarios', ok: true, scenarios: seeded },
   });
 };

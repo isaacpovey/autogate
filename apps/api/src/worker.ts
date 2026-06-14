@@ -27,7 +27,7 @@ import { runPipeline, type OrchestratorPorts } from "./orchestrator/index";
  * checked-out PR code.
  */
 
-type JobPayload = { runId: string };
+type JobPayload = { runId: string; fixture?: string };
 
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 1000);
 
@@ -76,6 +76,23 @@ const fixtureForPr = ({
   return fixture;
 };
 
+/** Pick the fixture named in the job payload, else fall back to the PR-number map. */
+const selectFixture = ({
+  fixtures,
+  fixtureName,
+  prNumber,
+}: {
+  fixtures: E2eFixture[];
+  fixtureName: string | undefined;
+  prNumber: number;
+}): E2eFixture => {
+  const named =
+    fixtureName === undefined
+      ? undefined
+      : fixtures.find((fixture) => fixture.name === fixtureName);
+  return named ?? fixtureForPr({ fixtures, prNumber });
+};
+
 const sleep = ({ ms }: { ms: number }): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -93,12 +110,20 @@ const processJob =
     runResults: ReturnType<typeof createRunResults>;
     queue: ReturnType<typeof createQueue<JobPayload>>;
   }) =>
-  async ({ id, runId }: { id: string; runId: string }): Promise<void> => {
+  async ({
+    id,
+    runId,
+    fixtureName,
+  }: {
+    id: string;
+    runId: string;
+    fixtureName: string | undefined;
+  }): Promise<void> => {
     const existing = await store.runs.get({ runId });
     if (existing === undefined) {
       throw new Error(`worker: no run stored for ${runId}`);
     }
-    const fixture = fixtureForPr({ fixtures, prNumber: existing.pr.number });
+    const fixture = selectFixture({ fixtures, fixtureName, prNumber: existing.pr.number });
     console.log(
       `[worker] claimed job ${id} for run ${runId} — replaying fixture "${fixture.name}" with REAL Claude (agents: ${Object.keys(fixture.agents).join(", ")})`,
     );
@@ -160,7 +185,11 @@ const main = async (): Promise<void> => {
       await sleep({ ms: POLL_INTERVAL_MS });
       return loop();
     }
-    await runJob({ id: job.id, runId: job.payload.runId }).catch((error) => {
+    await runJob({
+      id: job.id,
+      runId: job.payload.runId,
+      fixtureName: job.payload.fixture,
+    }).catch((error) => {
       console.error(`[worker] job ${job.id} failed:`, error);
     });
     return loop();
